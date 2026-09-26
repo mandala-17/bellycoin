@@ -1,0 +1,27 @@
+[package]
+name = "node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "node"
+path = "src/main.rs"
+
+[features]
+default = ["mainnet"]
+mainnet = ["kernel/mainnet", "wallet/mainnet"]
+
+[dependencies]
+borsh.workspace = true
+hex.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+igd-next.workspace = true
+getrandom.workspace = true
+redb.workspace = true
+kernel.workspace = true
+wallet = { path = "../wallet", default-features = false }

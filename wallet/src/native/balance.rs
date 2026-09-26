@@ -1,0 +1,20 @@
+use super::*;
+
+pub(super) fn print_balance(args: &[String]) -> Result<(), String> {
+    let path = option(args, "--wallet").unwrap_or(DEFAULT_WALLET_PATH);
+    let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
+    let bytes =
+        Zeroizing::new(fs::read(path).map_err(|error| format!("failed to read {path}: {error}"))?);
+    let address = kernel::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
+    let balance: BalanceResponse = http_get_json(rpc, &format!("/balance/{address}"))?;
+    let supply: NodeSupplyResponse = http_get_json(rpc, "/status")?;
+
+    println!("Address: {address}");
+    println!("Available: {}", format_amount(balance.total));
+    println!("Reserved: {}", format_amount(balance.reserved));
+    println!("UTXOs: {}", balance.utxo_count);
+    println!("Total Mined: {}", format_amount(supply.total_mined));
+    println!("Supply: {}", format_amount(supply.supply));
+
+    Ok(())
+}
