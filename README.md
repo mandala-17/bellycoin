@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/bellycoin.png" width="160" alt="Bellycoin Logo">
+  <img src="assets/bellycoin.png" width="160" alt="Bellycoin">
 </p>
 
 <h1 align="center">Bellycoin</h1>
