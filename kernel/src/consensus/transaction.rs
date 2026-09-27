@@ -3,12 +3,15 @@ use std::{collections::BTreeSet, error::Error as StdError, fmt};
 use common::ChainContext;
 use crypto::{Address, TransactionHash};
 
+use crate::ledger::nakama::{NakamaError, RegisterNakama};
 use crate::transaction::{Input, IntentError, Output, Pearl, SpendIntent, Transaction, UtxoRef};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTransaction {
     pub intent: SpendIntent,
     pub txid: TransactionHash,
+    pub registration: Option<RegisterNakama>,
+    pub chain: ChainContext,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,6 +22,13 @@ pub struct CoinInputState {
 
 pub trait TransactionStateView {
     fn pearl(&self, id: UtxoRef) -> Option<CoinInputState>;
+    fn validate_registration(
+        &self,
+        _registration: &RegisterNakama,
+        _chain: ChainContext,
+    ) -> Result<(), NakamaError> {
+        Err(NakamaError::InvalidSignature)
+    }
 }
 
 pub fn validate_transaction(
@@ -40,6 +50,16 @@ pub fn validate_transaction(
 
     let intent = &transaction.intent;
     validate_coin_inputs(&intent.inputs, &intent.outputs, intent.sender, state)?;
+    if let Some(registration) = &transaction.registration {
+        if registration.public_key != transaction.authorization.public_key {
+            return Err(TransactionConsensusError::InvalidRegistration(
+                NakamaError::WrongOwner,
+            ));
+        }
+        state
+            .validate_registration(registration, chain)
+            .map_err(TransactionConsensusError::InvalidRegistration)?;
+    }
 
     let txid = transaction
         .transaction_id()
@@ -47,6 +67,8 @@ pub fn validate_transaction(
     Ok(ValidatedTransaction {
         intent: transaction.intent,
         txid,
+        registration: transaction.registration,
+        chain,
     })
 }
 
@@ -94,6 +116,7 @@ pub enum TransactionConsensusError {
     RecipientMismatch,
     PearlOverflow,
     ValueMismatch,
+    InvalidRegistration(NakamaError),
 }
 
 impl fmt::Display for TransactionConsensusError {
@@ -111,6 +134,9 @@ impl fmt::Display for TransactionConsensusError {
             Self::PearlOverflow => formatter.write_str("transaction amount overflow"),
             Self::ValueMismatch => {
                 formatter.write_str("transaction input and output values differ")
+            }
+            Self::InvalidRegistration(error) => {
+                write!(formatter, "invalid name registration: {error:?}")
             }
         }
     }

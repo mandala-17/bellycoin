@@ -14,7 +14,8 @@ pub(super) fn interactive_menu() -> Result<(), String> {
         println!("7. Transfer");
         println!("8. Consolidate UTXOs");
         println!("9. Explorer");
-        println!("10. Exit");
+        println!("10. Register name");
+        println!("11. Exit");
 
         match prompt("Select")?.as_str() {
             "1" => {
@@ -35,7 +36,8 @@ pub(super) fn interactive_menu() -> Result<(), String> {
             }
             "3" => {
                 let path = prompt_default("Wallet file", DEFAULT_WALLET_PATH)?;
-                print_address(&["--wallet".into(), path])?;
+                let rpc = prompt_default("RPC", DEFAULT_RPC_ADDR)?;
+                print_address(&["--wallet".into(), path, "--rpc".into(), rpc])?;
             }
             "4" => {
                 let path = prompt_default("Wallet file", DEFAULT_WALLET_PATH)?;
@@ -47,7 +49,20 @@ pub(super) fn interactive_menu() -> Result<(), String> {
             "7" => interactive_spend()?,
             "8" => interactive_wallet_query(consolidate_coin_utxos)?,
             "9" => interactive_block_explorer()?,
-            "10" | "exit" | "quit" => return Ok(()),
+            "10" => {
+                let name = prompt("Name")?;
+                let path = prompt_default("Wallet file", DEFAULT_WALLET_PATH)?;
+                let rpc = prompt_default("RPC", DEFAULT_RPC_ADDR)?;
+                super::transaction::register_name(&[
+                    "--name".into(),
+                    name,
+                    "--wallet".into(),
+                    path,
+                    "--rpc".into(),
+                    rpc,
+                ])?;
+            }
+            "11" | "exit" | "quit" => return Ok(()),
             choice => println!("Unknown selection `{choice}`"),
         }
     }
@@ -111,8 +126,8 @@ fn interactive_wallet_query(query: fn(&[String]) -> Result<(), String>) -> Resul
 
 fn interactive_spend() -> Result<(), String> {
     let rpc = prompt_default("RPC", DEFAULT_RPC_ADDR)?;
-    let recipient = prompt("Nakama Address")?;
-    address_from_string(&recipient).map_err(|error| error.to_string())?;
+    let recipient = prompt("Nakama address or name")?;
+    super::transaction::recipient_address(&rpc, &recipient)?;
     let mut args = vec![
         "--to".into(),
         recipient,
@@ -228,7 +243,14 @@ pub(super) fn print_address(args: &[String]) -> Result<(), String> {
     let bytes =
         Zeroizing::new(fs::read(path).map_err(|error| format!("failed to read {path}: {error}"))?);
     let address = wallet_address_from_file_bytes(&bytes)?;
-    println!("Address: {}", kernel::crypto::address_to_string(&address));
+    let address = kernel::crypto::address_to_string(&address);
+    let names = option(args, "--rpc")
+        .map(|rpc| rpc::fetch_registered_names(rpc, &address))
+        .transpose()?;
+    println!("Address: {address}");
+    if let Some(names) = names.as_ref() {
+        rpc::print_registered_names(names);
+    }
     Ok(())
 }
 

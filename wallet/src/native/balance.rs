@@ -8,8 +8,10 @@ pub(super) fn print_balance(args: &[String]) -> Result<(), String> {
     let address = kernel::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
     let balance: BalanceResponse = http_get_json(rpc, &format!("/balance/{address}"))?;
     let supply: NodeSupplyResponse = http_get_json(rpc, "/status")?;
+    let names = rpc::fetch_registered_names(rpc, &address)?;
 
     println!("Address: {address}");
+    rpc::print_registered_names(&names);
     println!("Available: {}", format_amount(balance.total));
     println!("Reserved: {}", format_amount(balance.reserved));
     println!("UTXOs: {}", balance.utxo_count);

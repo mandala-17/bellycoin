@@ -5,7 +5,32 @@ use std::{
 
 use serde::Deserialize;
 
-use super::NakamaResponse;
+use super::{NakamaResponse, RegisteredNamesResponse};
+
+pub(super) fn fetch_registered_names(
+    rpc: &str,
+    address: &str,
+) -> Result<RegisteredNamesResponse, String> {
+    let response: RegisteredNamesResponse = http_get_json(rpc, &format!("/names/{address}"))?;
+    if response.address != address {
+        return Err("node returned names for a different address".into());
+    }
+    Ok(response)
+}
+
+pub(super) fn print_registered_names(response: &RegisteredNamesResponse) {
+    match response.names.as_slice() {
+        [] => println!("Name: (none)"),
+        [name] if !response.has_more => println!("Name: {name}"),
+        names => {
+            println!(
+                "Names: {}{}",
+                names.join(", "),
+                if response.has_more { ", ..." } else { "" }
+            );
+        }
+    }
+}
 
 pub(super) fn fetch_nakama(rpc: &str, address: &str) -> Result<NakamaResponse, String> {
     let mut response: NakamaResponse = http_get_json(rpc, &format!("/nakama/{address}"))?;

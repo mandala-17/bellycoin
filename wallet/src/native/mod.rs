@@ -57,6 +57,13 @@ struct BalanceResponse {
 }
 
 #[derive(Deserialize)]
+struct RegisteredNamesResponse {
+    address: String,
+    names: Vec<String>,
+    has_more: bool,
+}
+
+#[derive(Deserialize)]
 struct NodeSupplyResponse {
     total_mined: u64,
     supply: u64,
@@ -108,6 +115,7 @@ pub fn run(mut args: Vec<String>) -> Result<(), String> {
         Some("history") => print_history(&args[1..]),
         Some("utxos") | Some("utxo-tracker") => print_utxo_tracker(&args[1..]),
         Some("sign-spend") => sign_spend(&args[1..]),
+        Some("register-name") => register_name(&args[1..]),
         Some("consolidate") => consolidate_coin_utxos(&args[1..]),
         Some("version") | Some("--version") | Some("-V") => {
             println!("wallet {}", env!("CARGO_PKG_VERSION"));
@@ -140,7 +148,7 @@ use util::{format_amount, has_flag, option, parse_amount, print_help, repeated_o
 use balance::print_balance;
 use history::print_history;
 use rpc::{http_get_json, http_post_bytes};
-use transaction::{consolidate_coin_utxos, sign_spend};
+use transaction::{consolidate_coin_utxos, register_name, sign_spend};
 use utxo::print_utxo_tracker;
 
 #[cfg(test)]

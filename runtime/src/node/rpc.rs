@@ -120,6 +120,28 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
         load_or_initialize_header_snapshot(database)?;
 
     let response = match route {
+        route if route.starts_with("/names/") => {
+            let raw = route.trim_start_matches("/names/");
+            let address = parse_address(raw)?;
+            let (names, has_more) = ledger.state().nakama.names_for_address(address, 100);
+            serde_json::json!({ "address": raw, "names": names, "has_more": has_more })
+        }
+        route if route.starts_with("/name/") => {
+            let raw = route.trim_start_matches("/name/");
+            let name = kernel::ledger::nakama::NakamaName::new(raw)
+                .map_err(|error| format!("invalid name: {error:?}"))?;
+            let key = ledger
+                .state()
+                .nakama
+                .resolve(&name)
+                .ok_or("name was not found")?;
+            serde_json::json!({
+                "name": name.as_str(),
+                "address": kernel::crypto::address_to_string(&kernel::crypto::address_from_public_key(key)),
+                "public_key": hex::encode(&key.bytes),
+                "signature_scheme": key.scheme().as_str(),
+            })
+        }
         "/status" => status_response(&ledger, cumulative_work, cumulative_weight)?,
         "/fee-policy" => {
             let emission = expected_next_emission(&ledger)?;

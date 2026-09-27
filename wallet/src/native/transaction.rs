@@ -1,13 +1,80 @@
 use super::rpc::fetch_nakama;
 use super::*;
 
+#[derive(Deserialize)]
+struct NameLookup {
+    name: String,
+    address: String,
+    public_key: String,
+    signature_scheme: String,
+}
+
+pub(super) fn recipient_address(rpc: &str, value: &str) -> Result<Address, String> {
+    if let Ok(address) = address_from_string(value) {
+        return Ok(address);
+    }
+    let name = kernel::ledger::nakama::NakamaName::new(value)
+        .map_err(|error| format!("invalid recipient name: {error:?}"))?;
+    let lookup: NameLookup = http_get_json(rpc, &format!("/name/{}", name.as_str()))?;
+    if lookup.name != name.as_str() {
+        return Err("node returned a different name".into());
+    }
+    let scheme = lookup
+        .signature_scheme
+        .parse::<Signature>()
+        .map_err(|_| "node returned an invalid name signature scheme")?;
+    let key = kernel::crypto::PublicKey {
+        nakama: scheme,
+        bytes: hex::decode(&lookup.public_key)
+            .map_err(|_| "node returned an invalid name public key")?,
+    };
+    if !key.is_valid_encoding() {
+        return Err("node returned an invalid name public key".into());
+    }
+    let address = address_from_string(&lookup.address)
+        .map_err(|error| format!("node returned invalid name address: {error}"))?;
+    if kernel::crypto::address_from_public_key(&key) != address {
+        return Err("node returned a name address that does not match its public key".into());
+    }
+    Ok(address)
+}
+
+pub(super) fn register_name(args: &[String]) -> Result<(), String> {
+    reject_manual_fee(args)?;
+    let raw = option(args, "--name").ok_or("missing --name")?;
+    let name = kernel::ledger::nakama::NakamaName::new(raw)
+        .map_err(|error| format!("invalid name: {error:?}"))?;
+    let wallet = load_wallet(option(args, "--wallet").unwrap_or(DEFAULT_WALLET_PATH))?;
+    let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
+    let registration = wallet.0.sign_name_registration(name)?;
+
+    let transaction = automatic_fee_transaction(|fee| {
+        let required = fee.checked_add(1).ok_or("registration fee overflow")?;
+        let (inputs, change) = select_nakama_inputs(rpc, &wallet, required)?;
+        let mut outputs = vec![Output::new(wallet.address(), Pearl::from_pearl(change + 1))];
+        if fee > 0 {
+            outputs.push(Output::block_miner(Pearl::from_pearl(fee)));
+        }
+        let intent = SpendIntent {
+            sender: wallet.address(),
+            inputs: inputs.into_iter().map(Input::new).collect(),
+            outputs,
+        };
+        let mut transaction = wallet.sign_onchain_spend(intent)?;
+        transaction.registration = Some(registration.clone());
+        Ok(transaction)
+    })?;
+    submit_or_print_transaction(args, &transaction)
+}
+
 pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
     reject_manual_fee(args)?;
 
     let path = option(args, "--wallet").unwrap_or(DEFAULT_WALLET_PATH);
+    let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
 
     let recipient = option(args, "--to")
-        .map(|value| address_from_string(value).map_err(|error| error.to_string()))
+        .map(|value| recipient_address(rpc, value))
         .transpose()?;
     let recipient = recipient.ok_or("missing --to")?;
 
@@ -20,7 +87,6 @@ pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
         .map_err(|_| "invalid --input outpoint; expected 64-hex-txid:index".to_string())?;
 
     let wallet = load_wallet(path)?;
-    let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
 
     let explicit_change = option(args, "--change").map(parse_amount).transpose()?;
 

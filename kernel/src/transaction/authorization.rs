@@ -5,6 +5,7 @@ use crypto::{
     address_from_public_key, canonical_bytes, domain, verify,
 };
 
+use crate::ledger::nakama::RegisterNakama;
 use crate::transaction::{SpendIntent, TransactionEncodingError};
 use common::ChainContext;
 
@@ -70,6 +71,7 @@ impl NakamaAuthorization {
 pub struct Transaction {
     pub intent: SpendIntent,
     pub authorization: NakamaAuthorization,
+    pub registration: Option<RegisterNakama>,
 }
 
 impl Transaction {

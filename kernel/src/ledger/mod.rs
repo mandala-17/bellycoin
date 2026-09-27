@@ -2,6 +2,7 @@
 
 pub mod applied;
 pub mod ledger;
+pub mod nakama;
 mod state;
 pub mod utxo;
 

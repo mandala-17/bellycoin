@@ -127,7 +127,7 @@ struct RunConfig {
     p2p_listen: String,
     rpc_listen: String,
     peers: Vec<String>,
-    miner: Option<Address>,
+    miner: Option<String>,
     public_addr: Option<SocketAddr>,
     nat_traversal: bool,
 }
@@ -244,7 +244,18 @@ pub fn run(args: Vec<String>) -> Result<(), String> {
 
 fn run_automatic(args: &[String]) -> Result<(), String> {
     let config = RunConfig::parse(args)?;
-    state::load_or_initialize(&config.database)?;
+    let ledger = state::load_or_initialize(&config.database)?;
+    let miner = config
+        .miner
+        .as_deref()
+        .map(|value| util::resolve_miner(&ledger, value))
+        .transpose()?;
+    if let (Some(value), Some(address)) = (config.miner.as_deref(), miner) {
+        println!(
+            "miner: {value} -> {}",
+            kernel::crypto::address_to_string(&address)
+        );
+    }
     config::configure_public_address(&config)?;
     let sync_lock = Arc::new(Mutex::new(()));
 
@@ -262,7 +273,7 @@ fn run_automatic(args: &[String]) -> Result<(), String> {
         Arc::clone(&sync_lock),
     );
 
-    if let Some(miner) = config.miner {
+    if let Some(miner) = miner {
         let database = config.database.clone();
         thread::spawn(move || mining::mining_loop(database, miner));
     }

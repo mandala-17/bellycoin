@@ -323,7 +323,9 @@ pub(super) fn spend_transaction_response(
 ) -> serde_json::Value {
     let intent = &transaction.intent;
     serde_json::json!({
-        "type": "coin", "signer": kernel::crypto::address_to_string(&intent.sender),
+        "type": if transaction.registration.is_some() { "name_registration" } else { "coin" },
+        "registered_name": transaction.registration.as_ref().map(|registration| registration.name.as_str()),
+        "signer": kernel::crypto::address_to_string(&intent.sender),
         "inputs": intent.inputs.iter().map(|input| input.utxo.to_string()).collect::<Vec<_>>(),
         "outputs": public_outputs_response(&intent.outputs, miner, Some(intent.sender)),
         "miner_fee": miner_fee_from_outputs(&intent.outputs).unwrap_or(0),

@@ -1,5 +1,6 @@
 //! Canonical ledger state and rollback journal types.
 
+use super::nakama::{NakamaName, NakamaRegistryState};
 use super::utxo::{self, Bellycoin};
 
 use crate::transaction::{Pearl, UtxoRef};
@@ -10,6 +11,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 pub struct LedgerState {
     pub utxos: utxo::UtxoSet,
     pub coin: CoinRecord,
+    pub nakama: NakamaRegistryState,
 }
 
 impl LedgerState {
@@ -39,4 +41,5 @@ pub struct SpendRollbackJournal {
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct StateRollbackJournal {
     pub spend: Option<SpendRollbackJournal>,
+    pub registered_name: Option<NakamaName>,
 }

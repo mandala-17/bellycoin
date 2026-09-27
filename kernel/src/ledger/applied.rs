@@ -14,8 +14,28 @@ impl LedgerState {
         transaction: &ValidatedTransaction,
         block_miner: Address,
     ) -> Result<StateRollbackJournal, StateError> {
-        let spend = self.apply_onchain_spend(&transaction.intent, transaction.txid, block_miner)?;
-        Ok(StateRollbackJournal { spend: Some(spend) })
+        let registered_name = if let Some(registration) = &transaction.registration {
+            self.nakama
+                .register(registration.clone(), transaction.chain)
+                .map_err(|_| StateError::InvalidTransaction)?;
+            Some(registration.name.clone())
+        } else {
+            None
+        };
+        let spend =
+            match self.apply_onchain_spend(&transaction.intent, transaction.txid, block_miner) {
+                Ok(spend) => spend,
+                Err(error) => {
+                    if let Some(name) = &registered_name {
+                        self.nakama.remove(name);
+                    }
+                    return Err(error);
+                }
+            };
+        Ok(StateRollbackJournal {
+            spend: Some(spend),
+            registered_name,
+        })
     }
 
     fn apply_onchain_spend(
@@ -64,6 +84,9 @@ impl LedgerState {
         &mut self,
         journal: StateRollbackJournal,
     ) -> Result<(), StateError> {
+        if let Some(name) = journal.registered_name {
+            self.nakama.remove(&name);
+        }
         if let Some(spend) = journal.spend {
             self.rollback_spend(spend)?;
         }

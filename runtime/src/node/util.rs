@@ -19,5 +19,19 @@ pub(super) fn format_work(limbs: [u64; 8]) -> String {
 
 pub(super) fn parse_address(value: &str) -> Result<Address, String> {
     address_from_string(value)
-        .map_err(|_| "miner address must use canonical blc hex with an kernel checksum".to_string())
+        .map_err(|_| "address must use canonical blc encoding with a valid checksum".to_string())
+}
+
+pub(super) fn resolve_miner(ledger: &Ledger, value: &str) -> Result<Address, String> {
+    if let Ok(address) = address_from_string(value) {
+        return Ok(address);
+    }
+    let name = kernel::ledger::nakama::NakamaName::new(value)
+        .map_err(|error| format!("invalid miner name: {error:?}"))?;
+    let public_key = ledger
+        .state()
+        .nakama
+        .resolve(&name)
+        .ok_or_else(|| format!("miner name `{value}` is not registered on this chain"))?;
+    Ok(kernel::crypto::address_from_public_key(public_key))
 }

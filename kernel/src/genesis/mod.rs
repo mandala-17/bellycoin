@@ -37,7 +37,7 @@ pub const EXPECTED_GENESIS_HASH: BlockHash = BlockHash([
 
 /// Incremented whenever a consensus-critical field in [`ChainSpecIdentity`]
 /// changes.
-pub const CHAIN_SPEC_VERSION: u32 = 3;
+pub const CHAIN_SPEC_VERSION: u32 = 4;
 
 #[derive(BorshSerialize)]
 struct ChainSpecIdentity<'a> {
@@ -110,7 +110,7 @@ pub fn chain_spec_hash() -> Result<Hash, GenesisError> {
 
         hash_size: HASH_SIZE as u32,
 
-        transaction_format: "direct-utxo-outpoint-no-burn-v4",
+        transaction_format: "direct-utxo-outpoint-nakama-registration-v5",
     };
 
     let bytes = crypto::canonical_bytes(&identity).map_err(GenesisError::Encoding)?;

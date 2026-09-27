@@ -80,7 +80,8 @@ pub(super) fn mine_block_database(
 
 pub(super) fn mine_one_block(path: Option<&str>, miner: &str) -> Result<(), String> {
     let database = database_path(path);
-    let miner = parse_address(miner)?;
+    let ledger = load_or_initialize(&database)?;
+    let miner = resolve_miner(&ledger, miner)?;
     let mut next_nonce = 0_u64;
     let mut memory = new_pow_memory();
     loop {

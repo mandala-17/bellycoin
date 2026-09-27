@@ -98,7 +98,10 @@ impl Ledger {
                 mined: emission.subsidy(),
                 ..SpendRollbackJournal::default()
             };
-            journals.push(StateRollbackJournal { spend: Some(spend) });
+            journals.push(StateRollbackJournal {
+                spend: Some(spend),
+                registered_name: None,
+            });
         }
 
         for transaction in block.transactions() {
@@ -199,6 +202,14 @@ impl TransactionStateView for LedgerState {
             owner: pearl.owner,
         })
     }
+
+    fn validate_registration(
+        &self,
+        registration: &crate::ledger::nakama::RegisterNakama,
+        chain: ChainContext,
+    ) -> Result<(), crate::ledger::nakama::NakamaError> {
+        self.nakama.validate_registration(registration, chain)
+    }
 }
 
 //
@@ -207,11 +218,11 @@ impl TransactionStateView for LedgerState {
 
 impl LedgerState {
     pub(crate) fn application_state_root(&self) -> Result<StateRoot, LedgerError> {
-        if self.utxos.is_empty() && self.coin.total_mined.is_zero() {
+        if self.utxos.is_empty() && self.coin.total_mined.is_zero() && self.nakama.is_empty() {
             return Ok(StateRoot::ZERO);
         }
 
-        let state = canonical_bytes(&(&self.utxos, &self.coin))?;
+        let state = canonical_bytes(&(&self.utxos, &self.coin, &self.nakama))?;
 
         Ok(StateRoot(
             domain(HashDomain::ProtocolState, &state).into_bytes(),

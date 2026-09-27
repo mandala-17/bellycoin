@@ -425,7 +425,7 @@ mod p3e_replay_tests {
     use crypto::{NakamaSignatureScheme, SigningSeed, address_from_public_key};
 
     use crate::transaction::{
-        CInput, NakamaAuthorization, Output, Pearl, SpendIntent, Transaction, UtxoRef,
+        Input, NakamaAuthorization, Output, Pearl, SpendIntent, Transaction, UtxoRef,
     };
     use common::ChainContext;
     use crypto::TransactionHash;
@@ -438,7 +438,7 @@ mod p3e_replay_tests {
 
         let intent = SpendIntent {
             sender: signer,
-            inputs: vec![CInput::new(UtxoRef::new(
+            inputs: vec![Input::new(UtxoRef::new(
                 TransactionHash([0x31; crypto::HASH_SIZE]),
                 0,
             ))],
@@ -455,6 +455,7 @@ mod p3e_replay_tests {
                 public_key: seed.public_key(),
                 signature: seed.sign(commitment.as_bytes()),
             },
+            registration: None,
         }
     }
 

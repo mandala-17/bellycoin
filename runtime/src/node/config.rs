@@ -1,4 +1,3 @@
-use super::util::*;
 use super::*;
 
 impl RunConfig {
@@ -31,9 +30,7 @@ impl RunConfig {
                 }
                 "--miner" => {
                     index += 1;
-                    miner = Some(parse_address(
-                        args.get(index).ok_or("missing value for --miner")?,
-                    )?);
+                    miner = Some(args.get(index).ok_or("missing value for --miner")?.clone());
                 }
                 "--public-addr" => {
                     index += 1;
@@ -135,7 +132,7 @@ pub(super) fn print_network_info() -> Result<(), String> {
 
 pub(super) fn print_help() {
     println!(
-        "node run [--data PATH] [--p2p ADDRESS] [--rpc ADDRESS] [--peer ADDRESS]... [--miner ADDRESS] [--public-addr ADDRESS | --nat-traversal]\nnode network [data-dir] [listen-address] [peer-address...]\nnode rpc [data-dir] [listen-address]\nnode p2p-listen [data-dir] [listen-address]\nnode peer [data-dir] <peer-address>\nnode info\nnode check [data-dir]\nnode nakama [data-dir] <address>\nnode mempool [data-dir]\nnode mine-block [data-dir] <miner-address>\nnode submit-transaction [data-dir] <transaction-hex>\nnode submit-block [data-dir] <block-hex>\nnode version"
+        "node run [--data PATH] [--p2p ADDRESS] [--rpc ADDRESS] [--peer ADDRESS]... [--miner ADDRESS|NAME] [--public-addr ADDRESS | --nat-traversal]\nnode network [data-dir] [listen-address] [peer-address...]\nnode rpc [data-dir] [listen-address]\nnode p2p-listen [data-dir] [listen-address]\nnode peer [data-dir] <peer-address>\nnode info\nnode check [data-dir]\nnode nakama [data-dir] <address>\nnode mempool [data-dir]\nnode mine-block [data-dir] <miner-address-or-name>\nnode submit-transaction [data-dir] <transaction-hex>\nnode submit-block [data-dir] <block-hex>\nnode version"
     );
 }
 
