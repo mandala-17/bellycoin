@@ -204,13 +204,21 @@ impl NakamaWallet {
     }
 
     pub fn sign_nakama_intent(&self, intent: SpendIntent) -> Result<Transaction, String> {
+        self.sign_nakama_intent_with_registered_key(intent, false)
+    }
+
+    pub fn sign_nakama_intent_with_registered_key(
+        &self,
+        intent: SpendIntent,
+        registered: bool,
+    ) -> Result<Transaction, String> {
         let chain = kernel::genesis::chain_context().map_err(|error| error.to_string())?;
         let commitment = intent
             .authorization_commitment(chain)
             .map_err(|error| error.to_string())?;
         let signature = self.signing_seed.sign(commitment.as_bytes());
         let authorization = NakamaAuthorization {
-            public_key: self.public_key.clone(),
+            public_key: (!registered).then(|| self.public_key.clone()),
             signature,
         };
         Ok(Transaction {

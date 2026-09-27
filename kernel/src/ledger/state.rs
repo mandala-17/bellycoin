@@ -6,6 +6,7 @@ use super::utxo::{self, Bellycoin};
 use crate::transaction::{Pearl, UtxoRef};
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use crypto::Address;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct LedgerState {
@@ -42,4 +43,5 @@ pub struct SpendRollbackJournal {
 pub struct StateRollbackJournal {
     pub spend: Option<SpendRollbackJournal>,
     pub registered_name: Option<NakamaName>,
+    pub registered_public_key: Option<Address>,
 }

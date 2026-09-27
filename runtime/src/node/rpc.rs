@@ -120,6 +120,19 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
         load_or_initialize_header_snapshot(database)?;
 
     let response = match route {
+        route if route.starts_with("/public-key/") => {
+            let raw = route.trim_start_matches("/public-key/");
+            let address = parse_address(raw)?;
+            match ledger.state().nakama.public_key(address) {
+                Some(key) => serde_json::json!({
+                    "address": raw,
+                    "registered": true,
+                    "public_key": hex::encode(&key.bytes),
+                    "signature_scheme": key.scheme().as_str(),
+                }),
+                None => serde_json::json!({ "address": raw, "registered": false }),
+            }
+        }
         route if route.starts_with("/names/") => {
             let raw = route.trim_start_matches("/names/");
             let address = parse_address(raw)?;

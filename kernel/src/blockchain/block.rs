@@ -443,6 +443,7 @@ mod p3e_replay_tests {
                 0,
             ))],
             outputs: vec![Output::new(signer, Pearl::from_pearl(1))],
+            message: None,
         };
 
         let commitment = intent
@@ -452,7 +453,7 @@ mod p3e_replay_tests {
         Transaction {
             intent,
             authorization: NakamaAuthorization {
-                public_key: seed.public_key(),
+                public_key: Some(seed.public_key()),
                 signature: seed.sign(commitment.as_bytes()),
             },
             registration: None,

@@ -9,6 +9,42 @@ struct NameLookup {
     signature_scheme: String,
 }
 
+#[derive(Deserialize)]
+struct PublicKeyLookup {
+    address: String,
+    registered: bool,
+    public_key: Option<String>,
+    signature_scheme: Option<String>,
+}
+
+fn registered_key_available(rpc: &str, wallet: &LoadedWallet) -> Result<bool, String> {
+    let address = kernel::crypto::address_to_string(&wallet.address());
+    let lookup: PublicKeyLookup = http_get_json(rpc, &format!("/public-key/{address}"))?;
+    if lookup.address != address {
+        return Err("node returned a different public-key address".into());
+    }
+    if !lookup.registered {
+        return Ok(false);
+    }
+    let scheme = lookup
+        .signature_scheme
+        .as_deref()
+        .ok_or("node omitted registered key scheme")?
+        .parse::<Signature>()
+        .map_err(|_| "node returned invalid registered key scheme")?;
+    let key = hex::decode(
+        lookup
+            .public_key
+            .as_deref()
+            .ok_or("node omitted registered public key")?,
+    )
+    .map_err(|_| "node returned invalid registered public key")?;
+    if scheme != wallet.0.public_key.scheme() || key != wallet.0.public_key.bytes {
+        return Err("node registered public key does not match this wallet".into());
+    }
+    Ok(true)
+}
+
 pub(super) fn recipient_address(rpc: &str, value: &str) -> Result<Address, String> {
     if let Ok(address) = address_from_string(value) {
         return Ok(address);
@@ -59,12 +95,15 @@ pub(super) fn register_name(args: &[String]) -> Result<(), String> {
             sender: wallet.address(),
             inputs: inputs.into_iter().map(Input::new).collect(),
             outputs,
+            message: None,
         };
-        let mut transaction = wallet.sign_onchain_spend(intent)?;
+        let mut transaction = wallet
+            .0
+            .sign_nakama_intent_with_registered_key(intent, true)?;
         transaction.registration = Some(registration.clone());
         Ok(transaction)
     })?;
-    submit_or_print_transaction(args, &transaction)
+    submit_or_print_transaction(args, &transaction, &wallet.0.public_key)
 }
 
 pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
@@ -79,6 +118,7 @@ pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
     let recipient = recipient.ok_or("missing --to")?;
 
     let amount = parse_amount(option(args, "--amount").ok_or("missing --amount")?)?;
+    let message = option(args, "--message").map(str::to_string);
 
     let inputs = repeated_options(args, "--input")
         .into_iter()
@@ -87,6 +127,7 @@ pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
         .map_err(|_| "invalid --input outpoint; expected 64-hex-txid:index".to_string())?;
 
     let wallet = load_wallet(path)?;
+    let registered_key = registered_key_available(rpc, &wallet)?;
 
     let explicit_change = option(args, "--change").map(parse_amount).transpose()?;
 
@@ -133,14 +174,17 @@ pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
             sender: wallet.address(),
             inputs: selected.into_iter().map(Input::new).collect(),
             outputs,
+            message: message.clone(),
         };
         intent
             .validate_structure()
             .map_err(|error| error.to_string())?;
-        wallet.sign_onchain_spend(intent)
+        wallet
+            .0
+            .sign_nakama_intent_with_registered_key(intent, registered_key)
     })?;
 
-    submit_or_print_transaction(args, &transaction)
+    submit_or_print_transaction(args, &transaction, &wallet.0.public_key)
 }
 
 pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
@@ -149,6 +193,7 @@ pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
     let path = option(args, "--wallet").unwrap_or(DEFAULT_WALLET_PATH);
     let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
     let wallet = load_wallet(path)?;
+    let registered_key = registered_key_available(rpc, &wallet)?;
 
     let mut candidates = nakama_input_candidates(rpc, &wallet)?;
 
@@ -196,14 +241,17 @@ pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
             sender: wallet.address(),
             inputs: inputs.clone().into_iter().map(Input::new).collect(),
             outputs,
+            message: None,
         };
         intent
             .validate_structure()
             .map_err(|error| error.to_string())?;
-        wallet.sign_onchain_spend(intent)
+        wallet
+            .0
+            .sign_nakama_intent_with_registered_key(intent, registered_key)
     })?;
 
-    submit_or_print_transaction(args, &transaction)
+    submit_or_print_transaction(args, &transaction, &wallet.0.public_key)
 }
 
 fn nakama_input_candidates(rpc: &str, wallet: &LoadedWallet) -> Result<Vec<NakamaUtxo>, String> {
@@ -289,11 +337,12 @@ pub(super) fn automatic_fee_transaction(
 pub(super) fn submit_or_print_transaction(
     args: &[String],
     transaction: &Transaction,
+    public_key: &kernel::crypto::PublicKey,
 ) -> Result<(), String> {
     let chain = kernel::genesis::chain_context().map_err(|error| error.to_string())?;
 
     let authorization_valid = transaction
-        .verify_authorization(chain)
+        .verify_authorization_with_key(chain, public_key)
         .map_err(|error| format!("local authorization verification failed: {error}"))?;
 
     println!("Local Authorization Valid: {authorization_valid}");

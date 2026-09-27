@@ -44,25 +44,37 @@ impl SpendIntent {
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct NakamaAuthorization {
-    pub public_key: PublicKey,
+    pub public_key: Option<PublicKey>,
     pub signature: NakamaSignature,
 }
 
 impl NakamaAuthorization {
-    pub fn verify(&self, sender: Address, commitment: &AuthorizationCommitment) -> bool {
-        if self.public_key.scheme() != self.signature.scheme() {
+    pub fn verify(
+        &self,
+        sender: Address,
+        commitment: &AuthorizationCommitment,
+        public_key: &PublicKey,
+    ) -> bool {
+        if self
+            .public_key
+            .as_ref()
+            .is_some_and(|embedded| embedded != public_key)
+        {
+            return false;
+        }
+        if public_key.scheme() != self.signature.scheme() {
             return false;
         }
 
-        if !self.public_key.scheme().supported() {
+        if !public_key.scheme().supported() {
             return false;
         }
 
-        if address_from_public_key(&self.public_key) != sender {
+        if address_from_public_key(public_key) != sender {
             return false;
         }
 
-        verify(&self.public_key, commitment.as_bytes(), &self.signature)
+        verify(public_key, commitment.as_bytes(), &self.signature)
     }
 }
 
@@ -75,13 +87,28 @@ pub struct Transaction {
 }
 
 impl Transaction {
+    /// Checks an embedded key. Compact spends require `verify_authorization_with_key`.
     pub fn verify_authorization(
         &self,
         chain: ChainContext,
     ) -> Result<bool, TransactionEncodingError> {
         let commitment = self.intent.authorization_commitment(chain)?;
 
-        Ok(self.authorization.verify(self.intent.sender, &commitment))
+        Ok(self.authorization.public_key.as_ref().is_some_and(|key| {
+            self.authorization
+                .verify(self.intent.sender, &commitment, key)
+        }))
+    }
+
+    pub fn verify_authorization_with_key(
+        &self,
+        chain: ChainContext,
+        public_key: &PublicKey,
+    ) -> Result<bool, TransactionEncodingError> {
+        let commitment = self.intent.authorization_commitment(chain)?;
+        Ok(self
+            .authorization
+            .verify(self.intent.sender, &commitment, public_key))
     }
 
     pub fn transaction_id(&self) -> Result<TransactionHash, TransactionEncodingError> {

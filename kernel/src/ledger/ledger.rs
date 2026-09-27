@@ -101,6 +101,7 @@ impl Ledger {
             journals.push(StateRollbackJournal {
                 spend: Some(spend),
                 registered_name: None,
+                registered_public_key: None,
             });
         }
 
@@ -196,6 +197,9 @@ impl ApplyBlockState for Ledger {
 //
 
 impl TransactionStateView for LedgerState {
+    fn public_key(&self, address: crypto::Address) -> Option<crypto::PublicKey> {
+        self.nakama.public_key(address).cloned()
+    }
     fn pearl(&self, id: UtxoRef) -> Option<CoinInputState> {
         self.utxos.pearl(&id).map(|pearl| CoinInputState {
             amount: pearl.amount,

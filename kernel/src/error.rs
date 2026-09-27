@@ -216,6 +216,7 @@ mod transaction_errors {
         EmptyOutputs,
         ZeroAmount,
         DuplicateInput,
+        InvalidMessage,
         InvalidAssetCall,
         Encoding,
     }
@@ -227,6 +228,9 @@ mod transaction_errors {
                 Self::EmptyOutputs => formatter.write_str("intent has no outputs"),
                 Self::ZeroAmount => formatter.write_str("intent contains a zero amount"),
                 Self::DuplicateInput => formatter.write_str("intent contains a duplicate input"),
+                Self::InvalidMessage => formatter.write_str(
+                    "spend message must be 1-256 UTF-8 bytes without control characters",
+                ),
                 Self::InvalidAssetCall => formatter.write_str("asset call is structurally invalid"),
                 Self::Encoding => formatter.write_str("intent encoding failed"),
             }

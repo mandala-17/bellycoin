@@ -267,6 +267,7 @@ pub(super) fn address_transaction_activity(
         "type": transaction_kind(transaction),
         "direction": direction,
         "amount": amount.as_pearl(),
+        "message": transaction.intent.message.as_deref(),
         "size_bytes": canonical_bytes(transaction).map_err(|error| error.to_string())?.len(),
     })))
 }
@@ -325,6 +326,7 @@ pub(super) fn spend_transaction_response(
     serde_json::json!({
         "type": if transaction.registration.is_some() { "name_registration" } else { "coin" },
         "registered_name": transaction.registration.as_ref().map(|registration| registration.name.as_str()),
+        "message": intent.message.as_deref(),
         "signer": kernel::crypto::address_to_string(&intent.sender),
         "inputs": intent.inputs.iter().map(|input| input.utxo.to_string()).collect::<Vec<_>>(),
         "outputs": public_outputs_response(&intent.outputs, miner, Some(intent.sender)),

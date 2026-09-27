@@ -31,10 +31,6 @@ impl LoadedWallet {
     fn address(&self) -> Address {
         self.0.address
     }
-
-    fn sign_onchain_spend(&self, intent: SpendIntent) -> Result<Transaction, String> {
-        self.0.sign_nakama_intent(intent)
-    }
 }
 #[cfg(feature = "mainnet")]
 const DEFAULT_RPC_ADDR: &str = "127.0.0.1:6666";
@@ -95,6 +91,8 @@ struct AddressActivity {
     activity_type: String,
     direction: String,
     amount: u64,
+    #[serde(default)]
+    message: Option<String>,
     size_bytes: Option<usize>,
 }
 

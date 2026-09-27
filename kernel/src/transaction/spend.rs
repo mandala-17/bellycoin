@@ -8,6 +8,7 @@ use crate::error::IntentError;
 use common::Nakama;
 
 pub const DECIMALS: u8 = 8;
+pub const MAX_SPEND_MESSAGE_BYTES: usize = 256;
 
 #[derive(
     Debug,
@@ -126,6 +127,7 @@ pub struct SpendIntent {
     pub sender: Address,
     pub inputs: Vec<Input>,
     pub outputs: Vec<Output>,
+    pub message: Option<String>,
 }
 
 impl SpendIntent {
@@ -136,6 +138,14 @@ impl SpendIntent {
 
         if self.outputs.is_empty() {
             return Err(IntentError::EmptyOutputs);
+        }
+
+        if self.message.as_ref().is_some_and(|message| {
+            message.is_empty()
+                || message.len() > MAX_SPEND_MESSAGE_BYTES
+                || message.chars().any(char::is_control)
+        }) {
+            return Err(IntentError::InvalidMessage);
         }
 
         let mut unique = BTreeSet::new();
@@ -177,10 +187,40 @@ mod tests {
             sender: Address::ZERO,
             inputs: vec![Input::new(outpoint), Input::new(outpoint)],
             outputs: vec![Output::new(Address::ZERO, Pearl::ONE)],
+            message: None,
         };
         assert_eq!(
             intent.validate_structure(),
             Err(IntentError::DuplicateInput)
+        );
+    }
+
+    #[test]
+    fn spend_message_is_bounded_and_signed() {
+        let input = UtxoRef::new(TransactionHash([0x22; 32]), 0);
+        let mut intent = SpendIntent {
+            sender: Address::ZERO,
+            inputs: vec![Input::new(input)],
+            outputs: vec![Output::new(Address::ZERO, Pearl::ONE)],
+            message: None,
+        };
+        let chain = common::ChainContext::new([1; 32]);
+        let without_message = intent.authorization_commitment(chain).unwrap();
+        intent.message = Some("terima kasih".into());
+        assert!(intent.validate_structure().is_ok());
+        assert_ne!(
+            intent.authorization_commitment(chain).unwrap(),
+            without_message
+        );
+        intent.message = Some("x".repeat(MAX_SPEND_MESSAGE_BYTES + 1));
+        assert_eq!(
+            intent.validate_structure(),
+            Err(IntentError::InvalidMessage)
+        );
+        intent.message = Some("hello\nworld".into());
+        assert_eq!(
+            intent.validate_structure(),
+            Err(IntentError::InvalidMessage)
         );
     }
 }

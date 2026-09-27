@@ -1,7 +1,7 @@
 use std::{collections::BTreeSet, error::Error as StdError, fmt};
 
 use common::ChainContext;
-use crypto::{Address, TransactionHash};
+use crypto::{Address, PublicKey, TransactionHash};
 
 use crate::ledger::nakama::{NakamaError, RegisterNakama};
 use crate::transaction::{Input, IntentError, Output, Pearl, SpendIntent, Transaction, UtxoRef};
@@ -12,6 +12,7 @@ pub struct ValidatedTransaction {
     pub txid: TransactionHash,
     pub registration: Option<RegisterNakama>,
     pub chain: ChainContext,
+    pub revealed_key: Option<PublicKey>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +23,9 @@ pub struct CoinInputState {
 
 pub trait TransactionStateView {
     fn pearl(&self, id: UtxoRef) -> Option<CoinInputState>;
+    fn public_key(&self, _address: Address) -> Option<PublicKey> {
+        None
+    }
     fn validate_registration(
         &self,
         _registration: &RegisterNakama,
@@ -41,8 +45,25 @@ pub fn validate_transaction(
         .intent
         .validate_structure()
         .map_err(TransactionConsensusError::Intent)?;
+    let revealed_key = transaction.authorization.public_key.as_ref();
+    let stored_key = state.public_key(transaction.intent.sender);
+    let public_key = revealed_key
+        .or(stored_key.as_ref())
+        .or_else(|| {
+            transaction
+                .registration
+                .as_ref()
+                .map(|registration| &registration.public_key)
+        })
+        .ok_or(TransactionConsensusError::UnknownPublicKey)?;
+    if stored_key
+        .as_ref()
+        .is_some_and(|stored| stored != public_key)
+    {
+        return Err(TransactionConsensusError::InvalidAuthorization);
+    }
     if !transaction
-        .verify_authorization(chain)
+        .verify_authorization_with_key(chain, public_key)
         .map_err(|_| TransactionConsensusError::Encoding)?
     {
         return Err(TransactionConsensusError::InvalidAuthorization);
@@ -51,7 +72,7 @@ pub fn validate_transaction(
     let intent = &transaction.intent;
     validate_coin_inputs(&intent.inputs, &intent.outputs, intent.sender, state)?;
     if let Some(registration) = &transaction.registration {
-        if registration.public_key != transaction.authorization.public_key {
+        if &registration.public_key != public_key {
             return Err(TransactionConsensusError::InvalidRegistration(
                 NakamaError::WrongOwner,
             ));
@@ -61,6 +82,8 @@ pub fn validate_transaction(
             .map_err(TransactionConsensusError::InvalidRegistration)?;
     }
 
+    let key_to_register = stored_key.is_none().then(|| public_key.clone());
+
     let txid = transaction
         .transaction_id()
         .map_err(|_| TransactionConsensusError::Encoding)?;
@@ -69,6 +92,7 @@ pub fn validate_transaction(
         txid,
         registration: transaction.registration,
         chain,
+        revealed_key: key_to_register,
     })
 }
 
@@ -112,6 +136,7 @@ pub enum TransactionConsensusError {
     Encoding,
     Intent(IntentError),
     InvalidAuthorization,
+    UnknownPublicKey,
     UtxoNotFound,
     RecipientMismatch,
     PearlOverflow,
@@ -127,6 +152,8 @@ impl fmt::Display for TransactionConsensusError {
             Self::InvalidAuthorization => {
                 formatter.write_str("transaction authorization is invalid")
             }
+            Self::UnknownPublicKey => formatter
+                .write_str("sender public key is not registered; reveal it in this transaction"),
             Self::UtxoNotFound => formatter.write_str("transaction input UTXO was not found"),
             Self::RecipientMismatch => {
                 formatter.write_str("transaction input is not committed to this signer")

@@ -14,10 +14,25 @@ impl LedgerState {
         transaction: &ValidatedTransaction,
         block_miner: Address,
     ) -> Result<StateRollbackJournal, StateError> {
-        let registered_name = if let Some(registration) = &transaction.registration {
+        let registered_public_key = if let Some(key) = &transaction.revealed_key {
             self.nakama
+                .register_public_key(transaction.intent.sender, key.clone())
+                .map_err(|_| StateError::InvalidTransaction)?
+                .then_some(transaction.intent.sender)
+        } else {
+            None
+        };
+        let registered_name = if let Some(registration) = &transaction.registration {
+            if let Err(error) = self
+                .nakama
                 .register(registration.clone(), transaction.chain)
-                .map_err(|_| StateError::InvalidTransaction)?;
+            {
+                if let Some(address) = registered_public_key {
+                    self.nakama.remove_public_key(address);
+                }
+                let _ = error;
+                return Err(StateError::InvalidTransaction);
+            }
             Some(registration.name.clone())
         } else {
             None
@@ -29,12 +44,16 @@ impl LedgerState {
                     if let Some(name) = &registered_name {
                         self.nakama.remove(name);
                     }
+                    if let Some(address) = registered_public_key {
+                        self.nakama.remove_public_key(address);
+                    }
                     return Err(error);
                 }
             };
         Ok(StateRollbackJournal {
             spend: Some(spend),
             registered_name,
+            registered_public_key,
         })
     }
 
@@ -86,6 +105,9 @@ impl LedgerState {
     ) -> Result<(), StateError> {
         if let Some(name) = journal.registered_name {
             self.nakama.remove(&name);
+        }
+        if let Some(address) = journal.registered_public_key {
+            self.nakama.remove_public_key(address);
         }
         if let Some(spend) = journal.spend {
             self.rollback_spend(spend)?;

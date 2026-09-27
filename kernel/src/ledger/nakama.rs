@@ -24,6 +24,7 @@ pub enum NakamaError {
     InvalidPublicKey,
     Encoding,
     WrongOwner,
+    ConflictingPublicKey,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, BorshSerialize)]
@@ -87,21 +88,52 @@ impl RegisterNakama {
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct NakamaRecord {
-    pub public_key: PublicKey,
+    pub address: Address,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct NakamaRegistryState {
     records: BTreeMap<NakamaName, NakamaRecord>,
+    public_keys: BTreeMap<Address, PublicKey>,
 }
 
 impl NakamaRegistryState {
     pub fn is_empty(&self) -> bool {
-        self.records.is_empty()
+        self.records.is_empty() && self.public_keys.is_empty()
     }
 
     pub fn resolve(&self, name: &NakamaName) -> Option<&PublicKey> {
-        self.records.get(name).map(|record| &record.public_key)
+        self.records
+            .get(name)
+            .and_then(|record| self.public_keys.get(&record.address))
+    }
+
+    pub fn public_key(&self, address: Address) -> Option<&PublicKey> {
+        self.public_keys.get(&address)
+    }
+
+    /// Returns true when a new key was stored.
+    pub(crate) fn register_public_key(
+        &mut self,
+        address: Address,
+        public_key: PublicKey,
+    ) -> Result<bool, NakamaError> {
+        if !public_key.is_valid_encoding() || address_from_public_key(&public_key) != address {
+            return Err(NakamaError::InvalidPublicKey);
+        }
+        if let Some(existing) = self.public_keys.get(&address) {
+            return if existing == &public_key {
+                Ok(false)
+            } else {
+                Err(NakamaError::ConflictingPublicKey)
+            };
+        }
+        self.public_keys.insert(address, public_key);
+        Ok(true)
+    }
+
+    pub(crate) fn remove_public_key(&mut self, address: Address) {
+        self.public_keys.remove(&address);
     }
 
     /// Returns registered names in lexical order, with a flag for additional names.
@@ -109,7 +141,7 @@ impl NakamaRegistryState {
         let mut names = self
             .records
             .iter()
-            .filter(|(_, record)| address_from_public_key(&record.public_key) == address)
+            .filter(|(_, record)| record.address == address)
             .map(|(name, _)| name.as_str())
             .take(limit.saturating_add(1))
             .collect::<Vec<_>>();
@@ -124,12 +156,10 @@ impl NakamaRegistryState {
         chain: ChainContext,
     ) -> Result<(), NakamaError> {
         self.validate_registration(&registration, chain)?;
-        self.records.insert(
-            registration.name,
-            NakamaRecord {
-                public_key: registration.public_key,
-            },
-        );
+        let address = address_from_public_key(&registration.public_key);
+        self.register_public_key(address, registration.public_key)?;
+        self.records
+            .insert(registration.name, NakamaRecord { address });
         Ok(())
     }
 
@@ -143,6 +173,14 @@ impl NakamaRegistryState {
         }
         if !registration.public_key.is_valid_encoding() {
             return Err(NakamaError::InvalidPublicKey);
+        }
+        let address = address_from_public_key(&registration.public_key);
+        if self
+            .public_keys
+            .get(&address)
+            .is_some_and(|key| key != &registration.public_key)
+        {
+            return Err(NakamaError::ConflictingPublicKey);
         }
         if registration.public_key.scheme() != registration.signature.scheme()
             || !registration.signature.is_valid_encoding()
@@ -237,6 +275,7 @@ mod tests {
             sender,
             inputs: vec![Input::new(input)],
             outputs: vec![Output::new(sender, Pearl::ONE)],
+            message: None,
         };
         let mut registration = RegisterNakama {
             name: NakamaName::new("alice").unwrap(),
@@ -246,7 +285,7 @@ mod tests {
         registration.signature = seed.sign(&registration.signing_digest(chain).unwrap());
         let transaction = Transaction {
             authorization: NakamaAuthorization {
-                public_key: seed.public_key(),
+                public_key: Some(seed.public_key()),
                 signature: seed.sign(intent.authorization_commitment(chain).unwrap().as_bytes()),
             },
             intent,
@@ -263,7 +302,10 @@ mod tests {
                 )
             )
         ));
-        let validated = validate_transaction(transaction.clone(), chain, 1, &state).unwrap();
+        let mut compact_registration = transaction;
+        compact_registration.authorization.public_key = None;
+        let validated =
+            validate_transaction(compact_registration.clone(), chain, 1, &state).unwrap();
         let journal = state
             .apply_validated_transaction(&validated, sender)
             .unwrap();
@@ -272,9 +314,86 @@ mod tests {
             Some(&registration.public_key)
         );
         assert_ne!(state.application_state_root().unwrap(), original_root);
-        assert!(validate_transaction(transaction, chain, 1, &state).is_err());
+        assert!(validate_transaction(compact_registration, chain, 1, &state).is_err());
         state.rollback_state(journal).unwrap();
         assert_eq!(borsh::to_vec(&state).unwrap(), original);
         assert_eq!(state.application_state_root().unwrap(), original_root);
+    }
+
+    #[test]
+    fn first_spend_reveals_key_and_later_spend_uses_registry() {
+        let seed = SigningSeed::new(NakamaSignatureScheme::Falcon512, Box::new([11; 32]));
+        let chain = ChainContext::new([5; 32]);
+        let sender = address_from_public_key(&seed.public_key());
+        let input = UtxoRef::new(TransactionHash([6; 32]), 0);
+        let mut state = LedgerState::default();
+        state
+            .utxos
+            .insert_pearl(
+                input,
+                Bellycoin {
+                    amount: Pearl::ONE,
+                    owner: sender,
+                },
+            )
+            .unwrap();
+        let original = borsh::to_vec(&state).unwrap();
+        let first_intent = SpendIntent {
+            sender,
+            inputs: vec![Input::new(input)],
+            outputs: vec![Output::new(sender, Pearl::ONE)],
+            message: None,
+        };
+        let first = Transaction {
+            authorization: NakamaAuthorization {
+                public_key: Some(seed.public_key()),
+                signature: seed.sign(
+                    first_intent
+                        .authorization_commitment(chain)
+                        .unwrap()
+                        .as_bytes(),
+                ),
+            },
+            intent: first_intent,
+            registration: None,
+        };
+        let first_validated = validate_transaction(first, chain, 1, &state).unwrap();
+        let first_journal = state
+            .apply_validated_transaction(&first_validated, sender)
+            .unwrap();
+        assert_eq!(state.nakama.public_key(sender), Some(&seed.public_key()));
+
+        let next_input = UtxoRef::new(first_validated.txid, 0);
+        let next_intent = SpendIntent {
+            sender,
+            inputs: vec![Input::new(next_input)],
+            outputs: vec![Output::new(sender, Pearl::ONE)],
+            message: None,
+        };
+        let compact = Transaction {
+            authorization: NakamaAuthorization {
+                public_key: None,
+                signature: seed.sign(
+                    next_intent
+                        .authorization_commitment(chain)
+                        .unwrap()
+                        .as_bytes(),
+                ),
+            },
+            intent: next_intent,
+            registration: None,
+        };
+        let compact_validated = validate_transaction(compact.clone(), chain, 2, &state).unwrap();
+        let compact_journal = state
+            .apply_validated_transaction(&compact_validated, sender)
+            .unwrap();
+        state.rollback_state(compact_journal).unwrap();
+        state.rollback_state(first_journal).unwrap();
+        assert_eq!(state.nakama.public_key(sender), None);
+        assert_eq!(borsh::to_vec(&state).unwrap(), original);
+        assert!(matches!(
+            validate_transaction(compact, chain, 2, &state),
+            Err(crate::consensus::TransactionConsensusError::UnknownPublicKey)
+        ));
     }
 }

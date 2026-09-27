@@ -128,14 +128,19 @@ fn interactive_spend() -> Result<(), String> {
     let rpc = prompt_default("RPC", DEFAULT_RPC_ADDR)?;
     let recipient = prompt("Nakama address or name")?;
     super::transaction::recipient_address(&rpc, &recipient)?;
+    let amount = prompt("$blc amount")?;
+    let message = prompt("Message (optional, public)")?;
     let mut args = vec![
         "--to".into(),
         recipient,
         "--amount".into(),
-        prompt("$blc amount")?,
+        amount,
         "--rpc".into(),
         rpc,
     ];
+    if !message.is_empty() {
+        args.extend(["--message".into(), message]);
+    }
     args.extend([
         "--wallet".into(),
         prompt_default("Wallet file", DEFAULT_WALLET_PATH)?,
