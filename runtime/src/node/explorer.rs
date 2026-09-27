@@ -348,7 +348,7 @@ pub(super) fn public_outputs_response(
                         "recipient"
                     },
                 ),
-                Nakama::BlockMiner => (
+                Nakama::BountyHunter => (
                     Some(kernel::crypto::address_to_string(&miner)),
                     "miner",
                     "miner_fee",
@@ -368,7 +368,7 @@ pub(super) fn public_outputs_response(
 pub(super) fn output_recipient(output: &Output, miner: Address) -> Option<Address> {
     match output.output {
         Nakama::Address(address) => Some(address),
-        Nakama::BlockMiner => Some(miner),
+        Nakama::BountyHunter => Some(miner),
     }
 }
 

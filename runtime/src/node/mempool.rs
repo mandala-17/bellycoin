@@ -184,7 +184,7 @@ pub(super) fn transaction_miner_fee(transaction: &Transaction) -> Result<u64, St
 pub(super) fn miner_fee_from_outputs(outputs: &[Output]) -> Result<u64, String> {
     let mut fees = outputs
         .iter()
-        .filter(|output| output.output == Nakama::BlockMiner);
+        .filter(|output| output.output == Nakama::BountyHunter);
     let fee = fees.next().map_or(0, |output| output.amount.as_pearl());
     if fees.next().is_some() {
         return Err("transaction has multiple block-miner fee outputs".into());

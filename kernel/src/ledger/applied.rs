@@ -40,7 +40,7 @@ impl LedgerState {
 
                 let owner = match output.output {
                     Nakama::Address(address) => address,
-                    Nakama::BlockMiner => block_miner,
+                    Nakama::BountyHunter => block_miner,
                 };
 
                 self.utxos.insert_pearl(

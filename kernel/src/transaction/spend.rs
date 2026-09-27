@@ -104,7 +104,7 @@ impl Output {
 
     pub const fn block_miner(amount: Pearl) -> Self {
         Self {
-            output: Nakama::BlockMiner,
+            output: Nakama::BountyHunter,
             amount,
         }
     }

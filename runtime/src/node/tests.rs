@@ -95,7 +95,7 @@ fn asset_transaction_projection_exposes_asset_and_action() {
 #[test]
 fn explorer_miner_fee_uses_block_miner_output() {
     let outputs = vec![CoinOutput {
-        output: Recipient::BlockMiner,
+        output: Recipient::BountyHunter,
         amount: Pearl::from_pearl(2_284),
     }];
     assert_eq!(miner_fee_from_outputs(&outputs).unwrap(), 2_284);
