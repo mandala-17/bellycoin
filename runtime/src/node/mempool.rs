@@ -118,13 +118,7 @@ pub(super) fn reconcile_mempool(
 pub(super) fn reserved_coin_inputs(transactions: &[Transaction]) -> BTreeSet<UtxoRef> {
     transactions
         .iter()
-        .flat_map(|transaction| {
-            transaction
-                .intent
-                .inputs
-                .iter()
-                .map(|input| input.utxo)
-        })
+        .flat_map(|transaction| transaction.intent.inputs.iter().map(|input| input.utxo))
         .collect()
 }
 

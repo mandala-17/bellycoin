@@ -3,6 +3,6 @@ mod spend;
 
 pub use crate::error::{IntentError, TransactionEncodingError};
 
-pub use authorization::{NakamaAuthorization, AuthorizationCommitment, Transaction};
+pub use authorization::{AuthorizationCommitment, NakamaAuthorization, Transaction};
 
-pub use spend::{Input, Output, DECIMALS, Pearl, SpendIntent, UtxoRef};
+pub use spend::{DECIMALS, Input, Output, Pearl, SpendIntent, UtxoRef};

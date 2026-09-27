@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, error::Error as StdError, fmt};
 use common::ChainContext;
 use crypto::{Address, TransactionHash};
 
-use crate::transaction::{Input, Output, IntentError, Pearl, SpendIntent, Transaction, UtxoRef};
+use crate::transaction::{Input, IntentError, Output, Pearl, SpendIntent, Transaction, UtxoRef};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTransaction {

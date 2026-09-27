@@ -425,7 +425,7 @@ mod p3e_replay_tests {
     use crypto::{NakamaSignatureScheme, SigningSeed, address_from_public_key};
 
     use crate::transaction::{
-        NakamaAuthorization, CInput, Output, Pearl, SpendIntent, Transaction, UtxoRef,
+        CInput, NakamaAuthorization, Output, Pearl, SpendIntent, Transaction, UtxoRef,
     };
     use common::ChainContext;
     use crypto::TransactionHash;

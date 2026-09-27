@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crypto::{
-    NakamaSignature, Address, HASH_SIZE, HashDomain, PublicKey, TransactionHash,
+    Address, HASH_SIZE, HashDomain, NakamaSignature, PublicKey, TransactionHash,
     address_from_public_key, canonical_bytes, domain, verify,
 };
 

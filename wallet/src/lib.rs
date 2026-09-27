@@ -298,10 +298,7 @@ mod tests {
                 json["private_key"].as_str(),
                 Some(expected_private_key.as_str())
             );
-            assert_eq!(
-                wallet_file_signature_nakama(&bytes).unwrap(),
-                Some(nakama)
-            );
+            assert_eq!(wallet_file_signature_nakama(&bytes).unwrap(), Some(nakama));
             let restored = nakama_wallet_from_file_bytes(&bytes).unwrap();
             assert_eq!(restored.nakama(), nakama);
             assert_eq!(restored.address, wallet.address);

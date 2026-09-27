@@ -12,8 +12,9 @@ use kernel::{
 };
 use serde::Deserialize;
 use wallet::{
-    NakamaWallet, nakama_wallet_file_bytes, nakama_wallet_from_bip39_mnemonic,
-    nakama_wallet_from_file_bytes, generate_bip39_mnemonic, wallet_address_from_file_bytes,
+    NakamaWallet, generate_bip39_mnemonic, nakama_wallet_file_bytes,
+    nakama_wallet_from_bip39_mnemonic, nakama_wallet_from_file_bytes,
+    wallet_address_from_file_bytes,
 };
 use zeroize::{Zeroize, Zeroizing};
 
