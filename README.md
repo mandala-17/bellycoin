@@ -90,13 +90,13 @@ Pearl
 Bellycoin currently uses:
 
 ```text
-1 BELLY = 1,000,000 Pearl
+1 BELLY = 100,000,000 Pearl
 ```
 
 or:
 
 ```rust
-pub const DECIMALS: u8 = 6;
+pub const DECIMALS: u8 = 8;
 ```
 
 Amounts are represented using unsigned integers:
