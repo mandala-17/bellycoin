@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use crypto::{
-    AccountSignature, Address, HASH_SIZE, HashDomain, PublicKey, TransactionHash,
+    NakamaSignature, Address, HASH_SIZE, HashDomain, PublicKey, TransactionHash,
     address_from_public_key, canonical_bytes, domain, verify,
 };
 
@@ -42,12 +42,12 @@ impl SpendIntent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
-pub struct AccountAuthorization {
+pub struct NakamaAuthorization {
     pub public_key: PublicKey,
-    pub signature: AccountSignature,
+    pub signature: NakamaSignature,
 }
 
-impl AccountAuthorization {
+impl NakamaAuthorization {
     pub fn verify(&self, sender: Address, commitment: &AuthorizationCommitment) -> bool {
         if self.public_key.scheme() != self.signature.scheme() {
             return false;
@@ -69,7 +69,7 @@ impl AccountAuthorization {
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct Transaction {
     pub intent: SpendIntent,
-    pub authorization: AccountAuthorization,
+    pub authorization: NakamaAuthorization,
 }
 
 impl Transaction {

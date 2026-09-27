@@ -3,11 +3,11 @@ use super::*;
 pub(super) fn load_wallet(path: &str) -> Result<LoadedWallet, String> {
     let bytes =
         Zeroizing::new(fs::read(path).map_err(|error| format!("failed to read {path}: {error}"))?);
-    account_wallet_from_file_bytes(&bytes).map(LoadedWallet)
+    nakama_wallet_from_file_bytes(&bytes).map(LoadedWallet)
 }
 
-pub(super) fn write_account_wallet(path: &str, wallet: &AccountWallet) -> Result<(), String> {
-    let bytes = account_wallet_file_bytes(wallet)?;
+pub(super) fn write_nakama_wallet(path: &str, wallet: &NakamaWallet) -> Result<(), String> {
+    let bytes = nakama_wallet_file_bytes(wallet)?;
     write_private_file_atomically(Path::new(path), &bytes)
 }
 

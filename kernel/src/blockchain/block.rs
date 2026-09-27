@@ -422,16 +422,16 @@ pub fn decode_block(bytes: &[u8]) -> Result<Block, CodecError> {
 mod p3e_replay_tests {
     use super::*;
 
-    use crypto::{AccountSignatureScheme, SigningSeed, address_from_public_key};
+    use crypto::{NakamaSignatureScheme, SigningSeed, address_from_public_key};
 
     use crate::transaction::{
-        AccountAuthorization, CInput, Output, Pearl, SpendIntent, Transaction, UtxoRef,
+        NakamaAuthorization, CInput, Output, Pearl, SpendIntent, Transaction, UtxoRef,
     };
     use common::ChainContext;
     use crypto::TransactionHash;
 
     fn duplicate_fixture() -> Transaction {
-        let seed = SigningSeed::new(AccountSignatureScheme::Falcon512, Box::new([0x51; 32]));
+        let seed = SigningSeed::new(NakamaSignatureScheme::Falcon512, Box::new([0x51; 32]));
 
         let signer = address_from_public_key(&seed.public_key());
         let chain = ChainContext::new([0x71; crypto::HASH_SIZE]);
@@ -451,7 +451,7 @@ mod p3e_replay_tests {
 
         Transaction {
             intent,
-            authorization: AccountAuthorization {
+            authorization: NakamaAuthorization {
                 public_key: seed.public_key(),
                 signature: seed.sign(commitment.as_bytes()),
             },

@@ -4,7 +4,7 @@ use kernel::{
         Address, PublicKey, Signature, SigningSeed, address_from_public_key, address_from_string,
         address_to_string, hash_bytes,
     },
-    transaction::{AccountAuthorization, SpendIntent, Transaction},
+    transaction::{NakamaAuthorization, SpendIntent, Transaction},
 };
 
 use serde::{Deserialize, Serialize};
@@ -15,14 +15,14 @@ pub const BIP39_MNEMONIC_12_ENTROPY_BYTES: usize = 16;
 pub const BIP39_MNEMONIC_24_ENTROPY_BYTES: usize = 32;
 
 #[derive(Debug)]
-pub struct AccountWallet {
+pub struct NakamaWallet {
     pub mnemonic: Option<String>,
     pub address: Address,
     pub public_key: PublicKey,
     signing_seed: SigningSeed,
 }
 
-impl Drop for AccountWallet {
+impl Drop for NakamaWallet {
     fn drop(&mut self) {
         self.mnemonic.zeroize();
     }
@@ -34,7 +34,7 @@ struct WalletFile {
     address: String,
     mnemonic: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    signature_account: Option<String>,
+    signature_nakama: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     public_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -52,7 +52,7 @@ pub fn wallet_address_from_file_bytes(bytes: &[u8]) -> Result<Address, String> {
     address_from_string(&header.address).map_err(|error| format!("invalid wallet address: {error}"))
 }
 
-pub fn account_wallet_file_bytes(wallet: &AccountWallet) -> Result<Zeroizing<Vec<u8>>, String> {
+pub fn nakama_wallet_file_bytes(wallet: &NakamaWallet) -> Result<Zeroizing<Vec<u8>>, String> {
     let mnemonic = wallet
         .mnemonic
         .as_deref()
@@ -61,7 +61,7 @@ pub fn account_wallet_file_bytes(wallet: &AccountWallet) -> Result<Zeroizing<Vec
     let wallet_file = WalletFile {
         address: address_to_string(&wallet.address),
         mnemonic: mnemonic.to_string(),
-        signature_account: Some(wallet.account().as_str().to_string()),
+        signature_nakama: Some(wallet.nakama().as_str().to_string()),
         public_key: Some(hex::encode(&wallet.public_key.bytes)),
         private_key: Some({
             let seed = wallet.signing_seed.dangerous_export_seed();
@@ -73,25 +73,25 @@ pub fn account_wallet_file_bytes(wallet: &AccountWallet) -> Result<Zeroizing<Vec
         .map_err(|error| format!("failed to encode wallet file: {error}"))
 }
 
-pub fn account_wallet_from_file_bytes(bytes: &[u8]) -> Result<AccountWallet, String> {
+pub fn nakama_wallet_from_file_bytes(bytes: &[u8]) -> Result<NakamaWallet, String> {
     let wallet_file: WalletFile = serde_json::from_slice(bytes)
         .map_err(|error| format!("failed to parse wallet: {error}"))?;
-    let account = wallet_file
-        .signature_account
+    let nakama = wallet_file
+        .signature_nakama
         .as_deref()
-        .ok_or("wallet file does not contain a signature account")?
+        .ok_or("wallet file does not contain a signature nakama")?
         .parse::<Signature>()
         .map_err(str::to_string)?;
-    let mut wallet = account_wallet_from_bip39_mnemonic(&wallet_file.mnemonic, account)?;
+    let mut wallet = nakama_wallet_from_bip39_mnemonic(&wallet_file.mnemonic, nakama)?;
     let stored_address = address_from_string(&wallet_file.address)
         .map_err(|error| format!("invalid wallet address: {error}"))?;
     if wallet.address != stored_address {
-        return Err("wallet address does not match its mnemonic and signature account".to_string());
+        return Err("wallet address does not match its mnemonic and signature nakama".to_string());
     }
     if let Some(public_key) = wallet_file.public_key.as_deref()
         && public_key != hex::encode(&wallet.public_key.bytes)
     {
-        return Err("wallet public key does not match its mnemonic and signature account".into());
+        return Err("wallet public key does not match its mnemonic and signature nakama".into());
     }
     if let Some(private_key) = wallet_file.private_key.as_deref() {
         let expected_private_key = {
@@ -100,7 +100,7 @@ pub fn account_wallet_from_file_bytes(bytes: &[u8]) -> Result<AccountWallet, Str
         };
         if private_key != expected_private_key.as_str() {
             return Err(
-                "wallet private key does not match its mnemonic and signature account".into(),
+                "wallet private key does not match its mnemonic and signature nakama".into(),
             );
         }
     }
@@ -108,13 +108,13 @@ pub fn account_wallet_from_file_bytes(bytes: &[u8]) -> Result<AccountWallet, Str
     Ok(wallet)
 }
 
-pub fn wallet_file_signature_account(bytes: &[u8]) -> Result<Option<Signature>, String> {
+pub fn wallet_file_signature_nakama(bytes: &[u8]) -> Result<Option<Signature>, String> {
     let wallet_file: WalletFile = serde_json::from_slice(bytes)
         .map_err(|error| format!("failed to parse wallet: {error}"))?;
     wallet_file
-        .signature_account
+        .signature_nakama
         .as_deref()
-        .map(|account| account.parse::<Signature>().map_err(str::to_string))
+        .map(|nakama| nakama.parse::<Signature>().map_err(str::to_string))
         .transpose()
 }
 
@@ -130,19 +130,19 @@ pub fn generate_bip39_mnemonic(words: usize) -> Result<Zeroizing<String>, String
     encode_bip39_mnemonic(&entropy).map(Zeroizing::new)
 }
 
-pub fn account_wallet_from_bip39_mnemonic(
+pub fn nakama_wallet_from_bip39_mnemonic(
     phrase: &str,
-    account: Signature,
-) -> Result<AccountWallet, String> {
+    nakama: Signature,
+) -> Result<NakamaWallet, String> {
     let entropy = decode_bip39_mnemonic(phrase)?;
     let mut tag = Vec::from(b"XPARQ_WALLET_SIGNATURE_ACCOUNT".as_slice());
-    tag.push(account as u8);
+    tag.push(nakama as u8);
     let seed = tagged_wallet_hash(&tag, &entropy);
     let mut boxed_seed = Box::new([0_u8; 32]);
     boxed_seed.copy_from_slice(seed.as_ref());
-    let signing_seed = SigningSeed::new(account, boxed_seed);
+    let signing_seed = SigningSeed::new(nakama, boxed_seed);
     let public_key = signing_seed.public_key();
-    Ok(AccountWallet {
+    Ok(NakamaWallet {
         mnemonic: None,
         address: address_from_public_key(&public_key),
         public_key,
@@ -180,18 +180,18 @@ fn tagged_wallet_hash(tag: &[u8], bytes: &[u8]) -> Zeroizing<[u8; 32]> {
     Zeroizing::new(hash_bytes(&payload).0)
 }
 
-impl AccountWallet {
-    pub const fn account(&self) -> Signature {
-        self.signing_seed.account()
+impl NakamaWallet {
+    pub const fn nakama(&self) -> Signature {
+        self.signing_seed.nakama()
     }
 
-    pub fn sign_account_intent(&self, intent: SpendIntent) -> Result<Transaction, String> {
+    pub fn sign_nakama_intent(&self, intent: SpendIntent) -> Result<Transaction, String> {
         let chain = kernel::genesis::chain_context().map_err(|error| error.to_string())?;
         let commitment = intent
             .authorization_commitment(chain)
             .map_err(|error| error.to_string())?;
         let signature = self.signing_seed.sign(commitment.as_bytes());
-        let authorization = AccountAuthorization {
+        let authorization = NakamaAuthorization {
             public_key: self.public_key.clone(),
             signature,
         };
@@ -206,7 +206,7 @@ impl AccountWallet {
 mod tests {
     use super::*;
 
-    /* Legacy wallet tests removed with the account-only chain reset.
+    /* Legacy wallet tests removed with the nakama-only chain reset.
     #[test]
     fn wallet_file_roundtrip_preserves_signing_identity() {
         let mnemonic = encode_bip39_mnemonic(&[7; BIP39_MNEMONIC_12_ENTROPY_BYTES]).unwrap();
@@ -264,13 +264,13 @@ mod tests {
 
     */
     #[test]
-    fn mnemonic_derives_distinct_recoverable_account_addresses() {
+    fn mnemonic_derives_distinct_recoverable_nakama_addresses() {
         let mnemonic = encode_bip39_mnemonic(&[12; BIP39_MNEMONIC_12_ENTROPY_BYTES]).unwrap();
-        let accounts = [Signature::Falcon512, Signature::Falcon1024];
+        let nakamas = [Signature::Falcon512, Signature::Falcon1024];
         let first =
-            accounts.map(|account| account_wallet_from_bip39_mnemonic(&mnemonic, account).unwrap());
+            nakamas.map(|nakama| nakama_wallet_from_bip39_mnemonic(&mnemonic, nakama).unwrap());
         let second =
-            accounts.map(|account| account_wallet_from_bip39_mnemonic(&mnemonic, account).unwrap());
+            nakamas.map(|nakama| nakama_wallet_from_bip39_mnemonic(&mnemonic, nakama).unwrap());
         for (left, right) in first.iter().zip(&second) {
             assert_eq!(left.address, right.address);
         }
@@ -278,16 +278,16 @@ mod tests {
             .iter()
             .map(|wallet| wallet.address)
             .collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(unique.len(), accounts.len());
+        assert_eq!(unique.len(), nakamas.len());
     }
 
     #[test]
-    fn account_wallet_file_roundtrip_preserves_account_and_identity() {
+    fn nakama_wallet_file_roundtrip_preserves_nakama_and_identity() {
         let mnemonic = encode_bip39_mnemonic(&[13; BIP39_MNEMONIC_12_ENTROPY_BYTES]).unwrap();
-        for account in [Signature::Falcon512, Signature::Falcon1024] {
-            let mut wallet = account_wallet_from_bip39_mnemonic(&mnemonic, account).unwrap();
+        for nakama in [Signature::Falcon512, Signature::Falcon1024] {
+            let mut wallet = nakama_wallet_from_bip39_mnemonic(&mnemonic, nakama).unwrap();
             wallet.mnemonic = Some(mnemonic.clone());
-            let bytes = account_wallet_file_bytes(&wallet).unwrap();
+            let bytes = nakama_wallet_file_bytes(&wallet).unwrap();
             let json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
             assert_eq!(json["public_key"], hex::encode(&wallet.public_key.bytes));
             let expected_private_key = {
@@ -299,29 +299,29 @@ mod tests {
                 Some(expected_private_key.as_str())
             );
             assert_eq!(
-                wallet_file_signature_account(&bytes).unwrap(),
-                Some(account)
+                wallet_file_signature_nakama(&bytes).unwrap(),
+                Some(nakama)
             );
-            let restored = account_wallet_from_file_bytes(&bytes).unwrap();
-            assert_eq!(restored.account(), account);
+            let restored = nakama_wallet_from_file_bytes(&bytes).unwrap();
+            assert_eq!(restored.nakama(), nakama);
             assert_eq!(restored.address, wallet.address);
             assert_eq!(restored.public_key, wallet.public_key);
         }
     }
 
     #[test]
-    fn account_wallet_file_rejects_keys_that_do_not_match_recovery_material() {
+    fn nakama_wallet_file_rejects_keys_that_do_not_match_recovery_material() {
         let mnemonic = encode_bip39_mnemonic(&[14; BIP39_MNEMONIC_12_ENTROPY_BYTES]).unwrap();
         let mut wallet =
-            account_wallet_from_bip39_mnemonic(&mnemonic, Signature::Falcon512).unwrap();
+            nakama_wallet_from_bip39_mnemonic(&mnemonic, Signature::Falcon512).unwrap();
         wallet.mnemonic = Some(mnemonic);
-        let bytes = account_wallet_file_bytes(&wallet).unwrap();
+        let bytes = nakama_wallet_file_bytes(&wallet).unwrap();
         let mut json: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
 
         json["public_key"] = serde_json::Value::String("00".repeat(wallet.public_key.bytes.len()));
         let tampered_public = serde_json::to_vec(&json).unwrap();
         assert!(
-            account_wallet_from_file_bytes(&tampered_public)
+            nakama_wallet_from_file_bytes(&tampered_public)
                 .unwrap_err()
                 .contains("public key does not match")
         );
@@ -330,7 +330,7 @@ mod tests {
         json["private_key"] = serde_json::Value::String("00".repeat(32));
         let tampered_private = serde_json::to_vec(&json).unwrap();
         assert!(
-            account_wallet_from_file_bytes(&tampered_private)
+            nakama_wallet_from_file_bytes(&tampered_private)
                 .unwrap_err()
                 .contains("private key does not match")
         );

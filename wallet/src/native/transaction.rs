@@ -1,4 +1,4 @@
-use super::rpc::fetch_account;
+use super::rpc::fetch_nakama;
 use super::*;
 
 pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
@@ -39,7 +39,7 @@ pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
             .ok_or("transaction amount plus fee overflow")?;
 
         let (selected, change, change_address) = if inputs.is_empty() {
-            let (selected, change) = select_account_inputs(rpc, &wallet, required)?;
+            let (selected, change) = select_nakama_inputs(rpc, &wallet, required)?;
             (selected, change, wallet.address())
         } else {
             let gross_change = explicit_change.map_or(0, Pearl::as_pearl);
@@ -84,7 +84,7 @@ pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
     let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
     let wallet = load_wallet(path)?;
 
-    let mut candidates = account_input_candidates(rpc, &wallet)?;
+    let mut candidates = nakama_input_candidates(rpc, &wallet)?;
 
     if candidates.len() < 2 {
         return Err("consolidation requires at least two available bellycoin UTXOs".into());
@@ -140,9 +140,9 @@ pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
     submit_or_print_transaction(args, &transaction)
 }
 
-fn account_input_candidates(rpc: &str, wallet: &LoadedWallet) -> Result<Vec<AccountUtxo>, String> {
+fn nakama_input_candidates(rpc: &str, wallet: &LoadedWallet) -> Result<Vec<NakamaUtxo>, String> {
     let address = kernel::crypto::address_to_string(&wallet.address());
-    let response = fetch_account(rpc, &address)?;
+    let response = fetch_nakama(rpc, &address)?;
     let mut candidates = response
         .utxos
         .into_iter()
@@ -157,12 +157,12 @@ fn account_input_candidates(rpc: &str, wallet: &LoadedWallet) -> Result<Vec<Acco
     Ok(candidates)
 }
 
-pub(super) fn select_account_inputs(
+pub(super) fn select_nakama_inputs(
     rpc: &str,
     wallet: &LoadedWallet,
     required: u64,
 ) -> Result<(Vec<UtxoRef>, u64), String> {
-    let candidates = account_input_candidates(rpc, wallet)?;
+    let candidates = nakama_input_candidates(rpc, wallet)?;
     let mut selected = Vec::new();
     let mut total = 0_u64;
     for utxo in candidates {

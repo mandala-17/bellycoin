@@ -12,8 +12,8 @@ use kernel::{
 };
 use serde::Deserialize;
 use wallet::{
-    AccountWallet, account_wallet_file_bytes, account_wallet_from_bip39_mnemonic,
-    account_wallet_from_file_bytes, generate_bip39_mnemonic, wallet_address_from_file_bytes,
+    NakamaWallet, nakama_wallet_file_bytes, nakama_wallet_from_bip39_mnemonic,
+    nakama_wallet_from_file_bytes, generate_bip39_mnemonic, wallet_address_from_file_bytes,
 };
 use zeroize::{Zeroize, Zeroizing};
 
@@ -24,7 +24,7 @@ const DEFAULT_HISTORY_LIMIT: usize = 50;
 const MAX_HISTORY_LIMIT: usize = 250;
 const HISTORY_CURSOR_HEX_LEN: usize = 34;
 
-struct LoadedWallet(AccountWallet);
+struct LoadedWallet(NakamaWallet);
 
 impl LoadedWallet {
     fn address(&self) -> Address {
@@ -32,18 +32,18 @@ impl LoadedWallet {
     }
 
     fn sign_onchain_spend(&self, intent: SpendIntent) -> Result<Transaction, String> {
-        self.0.sign_account_intent(intent)
+        self.0.sign_nakama_intent(intent)
     }
 }
 #[cfg(feature = "mainnet")]
 const DEFAULT_RPC_ADDR: &str = "127.0.0.1:6666";
 
 #[derive(Deserialize)]
-struct AccountResponse {
+struct NakamaResponse {
     next_height: u64,
     #[serde(rename = "utxo_snapshot")]
     _utxo_snapshot: String,
-    utxos: Vec<AccountUtxo>,
+    utxos: Vec<NakamaUtxo>,
     next_utxo_offset: Option<usize>,
     next_utxo_cursor: Option<String>,
 }
@@ -62,7 +62,7 @@ struct NodeSupplyResponse {
 }
 
 #[derive(Deserialize)]
-struct AccountUtxo {
+struct NakamaUtxo {
     id: String,
     amount: u64,
     reserved: bool,
@@ -131,7 +131,7 @@ mod util;
 mod utxo;
 mod wallet_file;
 
-use wallet_file::{load_wallet, write_account_wallet};
+use wallet_file::{load_wallet, write_nakama_wallet};
 
 use cli::{create_wallet, interactive_menu, print_address, restore_wallet};
 use util::{format_amount, has_flag, option, parse_amount, print_help, repeated_options};

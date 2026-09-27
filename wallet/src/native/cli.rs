@@ -20,17 +20,17 @@ pub(super) fn interactive_menu() -> Result<(), String> {
             "1" => {
                 let path = prompt_default("Wallet file", DEFAULT_WALLET_PATH)?;
                 let words = prompt_default("Mnemonic words (12 or 24)", "12")?;
-                let account = prompt_signature_account()?;
+                let nakama = prompt_signature_nakama()?;
                 let mut args = vec!["--wallet".into(), path, "--words".into(), words];
-                args.extend(["--account".into(), account]);
+                args.extend(["--nakama".into(), nakama]);
                 create_wallet(&args)?;
             }
             "2" => {
                 let path = prompt_default("Wallet file", DEFAULT_WALLET_PATH)?;
                 let phrase = prompt("Mnemonic")?;
-                let account = prompt_signature_account()?;
+                let nakama = prompt_signature_nakama()?;
                 let mut args = vec!["--wallet".into(), path, "--mnemonic".into(), phrase];
-                args.extend(["--account".into(), account]);
+                args.extend(["--nakama".into(), nakama]);
                 restore_wallet(&args)?;
             }
             "3" => {
@@ -53,13 +53,13 @@ pub(super) fn interactive_menu() -> Result<(), String> {
     }
 }
 
-fn prompt_signature_account() -> Result<String, String> {
+fn prompt_signature_nakama() -> Result<String, String> {
     loop {
-        let value = prompt_default("Signature account (falcon512, falcon1024)", "falcon512")?;
+        let value = prompt_default("Signature nakama (falcon512, falcon1024)", "falcon512")?;
         if value.parse::<Signature>().is_ok() {
             return Ok(value);
         }
-        println!("Unknown signature account `{value}`");
+        println!("Unknown signature nakama `{value}`");
     }
 }
 
@@ -187,12 +187,12 @@ pub(super) fn create_wallet(args: &[String]) -> Result<(), String> {
         .parse::<usize>()
         .map_err(|_| "--words must be 12 or 24".to_string())?;
     let mnemonic = generate_bip39_mnemonic(words)?;
-    let account = signature_account_option(args)?.unwrap_or(Signature::Falcon512);
-    let mut wallet = account_wallet_from_bip39_mnemonic(&mnemonic, account)?;
+    let nakama = signature_nakama_option(args)?.unwrap_or(Signature::Falcon512);
+    let mut wallet = nakama_wallet_from_bip39_mnemonic(&mnemonic, nakama)?;
     wallet.mnemonic = Some(mnemonic.to_string());
     let address = wallet.address;
-    write_account_wallet(path, &wallet)?;
-    println!("signature_account: {account}");
+    write_nakama_wallet(path, &wallet)?;
+    println!("signature_nakama: {nakama}");
     println!("address: {}", kernel::crypto::address_to_string(&address));
     println!("mnemonic: {}", mnemonic.as_str());
     println!("wallet: {path}");
@@ -202,23 +202,23 @@ pub(super) fn create_wallet(args: &[String]) -> Result<(), String> {
 pub(super) fn restore_wallet(args: &[String]) -> Result<(), String> {
     let path = option(args, "--wallet").unwrap_or(DEFAULT_WALLET_PATH);
     let phrase = option(args, "--mnemonic").ok_or("missing --mnemonic")?;
-    let account = signature_account_option(args)?.unwrap_or(Signature::Falcon512);
-    let mut wallet = account_wallet_from_bip39_mnemonic(phrase, account)?;
+    let nakama = signature_nakama_option(args)?.unwrap_or(Signature::Falcon512);
+    let mut wallet = nakama_wallet_from_bip39_mnemonic(phrase, nakama)?;
     wallet.mnemonic = Some(phrase.to_string());
     let address = wallet.address;
-    write_account_wallet(path, &wallet)?;
-    println!("signature_account: {account}");
+    write_nakama_wallet(path, &wallet)?;
+    println!("signature_nakama: {nakama}");
     println!("address: {}", kernel::crypto::address_to_string(&address));
     println!("wallet: {path}");
     Ok(())
 }
 
-fn signature_account_option(args: &[String]) -> Result<Option<Signature>, String> {
-    option(args, "--account")
+fn signature_nakama_option(args: &[String]) -> Result<Option<Signature>, String> {
+    option(args, "--nakama")
         .map(|value| {
             value
                 .parse::<Signature>()
-                .map_err(|_| "invalid --account; use falcon512, or falcon1024".to_string())
+                .map_err(|_| "invalid --nakama; use falcon512, or falcon1024".to_string())
         })
         .transpose()
 }

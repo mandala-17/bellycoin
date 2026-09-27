@@ -4,11 +4,11 @@ use super::{config::*, mempool::*, state::*, util::*};
 pub(super) const DEFAULT_ADDRESS_ACTIVITY_LIMIT: usize = 50;
 pub(super) const MAX_ADDRESS_ACTIVITY_LIMIT: usize = 250;
 
-pub(super) fn print_account(path: Option<&str>, address: &str) -> Result<(), String> {
+pub(super) fn print_nakama(path: Option<&str>, address: &str) -> Result<(), String> {
     let database = database_path(path);
     let ledger = load_or_initialize(&database)?;
     let address = parse_address(address)?;
-    let response = account_response(&ledger, &read_mempool(&database)?, address, 0, None)?;
+    let response = nakama_response(&ledger, &read_mempool(&database)?, address, 0, None)?;
     println!(
         "{}",
         serde_json::to_string_pretty(&response).map_err(|error| error.to_string())?
@@ -16,7 +16,7 @@ pub(super) fn print_account(path: Option<&str>, address: &str) -> Result<(), Str
     Ok(())
 }
 
-pub(super) fn account_response(
+pub(super) fn nakama_response(
     ledger: &Ledger,
     mempool: &[Transaction],
     address: Address,
@@ -28,22 +28,22 @@ pub(super) fn account_response(
         .map_or(0, |height| height.0.saturating_add(1));
     let reserved = reserved_coin_inputs(mempool);
     let mut total = Pearl::from_pearl(0);
-    let mut account_utxos = ledger
+    let mut nakama_utxos = ledger
         .state()
         .utxos
         .pearls()
         .filter(|(_, coin)| coin.owner == address)
         .collect::<Vec<_>>();
-    account_utxos.sort_by_key(|(id, _)| *id);
-    for (_, coin) in &account_utxos {
+    nakama_utxos.sort_by_key(|(id, _)| *id);
+    for (_, coin) in &nakama_utxos {
         total = total
             .checked_add(coin.amount)
-            .ok_or("account balance overflow")?;
+            .ok_or("nakama balance overflow")?;
     }
     let page_start = utxo_after.map_or(utxo_offset, |cursor| {
-        account_utxos.partition_point(|(id, _)| *id <= cursor)
+        nakama_utxos.partition_point(|(id, _)| *id <= cursor)
     });
-    let utxos = account_utxos
+    let utxos = nakama_utxos
         .iter()
         .skip(page_start)
         .take(MAX_ACCOUNT_UTXOS_PER_PAGE)
@@ -58,18 +58,18 @@ pub(super) fn account_response(
         .collect::<Vec<_>>();
     let next_utxo_offset = page_start
         .checked_add(utxos.len())
-        .filter(|offset| *offset < account_utxos.len());
+        .filter(|offset| *offset < nakama_utxos.len());
     let next_utxo_cursor = next_utxo_offset
-        .and_then(|_| account_utxos.get(page_start + utxos.len().saturating_sub(1)))
+        .and_then(|_| nakama_utxos.get(page_start + utxos.len().saturating_sub(1)))
         .map(|(id, _)| id.to_string());
-    let utxo_snapshot_entries = account_utxos
+    let utxo_snapshot_entries = nakama_utxos
         .iter()
         .map(|(id, coin)| (*id, coin.amount, reserved.contains(id)))
         .collect::<Vec<_>>();
     let utxo_snapshot_bytes = kernel::crypto::canonical_bytes(&(address, utxo_snapshot_entries))
-        .map_err(|error| format!("encode account UTXO snapshot: {error}"))?;
+        .map_err(|error| format!("encode nakama UTXO snapshot: {error}"))?;
     let utxo_snapshot = kernel::crypto::domain_hash(
-        kernel::crypto::HashDomain::AccountState,
+        kernel::crypto::HashDomain::NakamaState,
         &utxo_snapshot_bytes,
     );
     Ok(serde_json::json!({
@@ -101,19 +101,19 @@ pub(super) fn balance_response(
     {
         total = total
             .checked_add(utxo.1.amount)
-            .ok_or("account balance overflow")?;
+            .ok_or("nakama balance overflow")?;
         if reserved_ids.contains(&utxo.0) {
             reserved = reserved
                 .checked_add(utxo.1.amount)
-                .ok_or("reserved account balance overflow")?;
+                .ok_or("reserved nakama balance overflow")?;
         }
         utxo_count = utxo_count
             .checked_add(1)
-            .ok_or("account UTXO count overflow")?;
+            .ok_or("nakama UTXO count overflow")?;
     }
     let available = total
         .checked_sub(reserved)
-        .ok_or("reserved account balance exceeds total")?;
+        .ok_or("reserved nakama balance exceeds total")?;
     Ok(serde_json::json!({
         "address": kernel::crypto::address_to_string(&address),
         "tip_height": ledger.tip_height().map_or(0, |height| height.0),

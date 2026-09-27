@@ -56,7 +56,7 @@ impl Address {
 pub fn address_from_public_key(public_key: &PublicKey) -> Address {
     let mut material = Vec::with_capacity(1 + public_key.bytes.len());
 
-    material.push(public_key.account as u8);
+    material.push(public_key.nakama as u8);
     material.extend_from_slice(&public_key.bytes);
 
     address_from_key_material(&material)

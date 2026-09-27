@@ -14,7 +14,7 @@ fn embedded_api_documentation_is_valid_and_references_every_rpc_route() {
         "/blocks/latest",
         "/block/{height}",
         "/balance/{address}",
-        "/account/{address}",
+        "/nakama/{address}",
         "/asset/{asset}",
         "/asset/{asset}/balance/{address}",
         "/pools",
@@ -57,14 +57,14 @@ fn asset_transaction_projection_exposes_asset_and_action() {
     let signature = seed.sign(&asset_call.commitment(chain.genesis_hash).unwrap());
     let asset = asset_call.asset().unwrap().to_string();
     let transaction = kernel::transaction::AuthorizedAssetTransaction {
-        call: kernel::transaction::AuthorizedAccountIntent {
+        call: kernel::transaction::AuthorizedNakamaIntent {
             intent: asset_call,
-            authorization: kernel::transaction::AccountAuthorization {
+            authorization: kernel::transaction::NakamaAuthorization {
                 public_key,
                 signature,
             },
         },
-        payment: kernel::transaction::AuthorizedAccountIntent {
+        payment: kernel::transaction::AuthorizedNakamaIntent {
             intent: kernel::transaction::SpendIntent {
                 signer: Address::ZERO,
                 spend: kernel::transaction::Spend::Coin {
@@ -72,10 +72,10 @@ fn asset_transaction_projection_exposes_asset_and_action() {
                     outputs: vec![],
                 },
             },
-            authorization: kernel::transaction::AccountAuthorization {
+            authorization: kernel::transaction::NakamaAuthorization {
                 public_key: seed.public_key(),
-                signature: kernel::crypto::AccountSignature {
-                    account: kernel::crypto::Signature::MlDsa44,
+                signature: kernel::crypto::NakamaSignature {
+                    nakama: kernel::crypto::Signature::MlDsa44,
                     bytes: vec![],
                 },
             },
@@ -102,7 +102,7 @@ fn explorer_miner_fee_uses_block_miner_output() {
 }
 
 #[test]
-fn account_projection_lists_asset_supply_and_creator_shares() {
+fn nakama_projection_lists_asset_supply_and_creator_shares() {
     let seed =
         kernel::crypto::SigningSeed::new(kernel::crypto::Signature::MlDsa44, Box::new([0x61; 32]));
     let authority = kernel::crypto::address_from_public_key(&seed.public_key());
@@ -124,7 +124,7 @@ fn account_projection_lists_asset_supply_and_creator_shares() {
         .apply(&mut ledger.state.utxos, &call, [0; 32])
         .unwrap();
 
-    let assets = account_asset_balances(&ledger, authority).unwrap();
+    let assets = nakama_asset_balances(&ledger, authority).unwrap();
     assert_eq!(assets.len(), 1);
     assert_eq!(assets[0]["max_supply"], "10");
     assert_eq!(assets[0]["mint"], "4");
@@ -325,7 +325,7 @@ fn explorer_address_pagination_advances_when_emissions_are_hidden() {
 fn explorer_activity_reports_net_transfer_for_sender_and_recipient() {
     let mnemonic = wallet::encode_bip39_mnemonic(&[3; 16]).unwrap();
     let sender =
-        wallet::account_wallet_from_bip39_mnemonic(&mnemonic, kernel::crypto::Signature::MlDsa44)
+        wallet::nakama_wallet_from_bip39_mnemonic(&mnemonic, kernel::crypto::Signature::MlDsa44)
             .unwrap();
     let recipient = Address([4; kernel::crypto::ADDRESS_SIZE]);
     let miner = Address([5; kernel::crypto::ADDRESS_SIZE]);
@@ -342,7 +342,7 @@ fn explorer_activity_reports_net_transfer_for_sender_and_recipient() {
     .unwrap();
     let transaction =
         AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_account_intent(intent).unwrap(),
+            spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }));
     let genesis = genesis_block().unwrap();
@@ -415,7 +415,7 @@ fn append_synthetic_header_block(ledger: &mut Ledger, miner: Address) {
         .expect("synthetic chain has canonical tip");
 
     // Use a known-valid target encoding from genesis.
-    // This test checks checkpoint accounting, not difficulty adjustment.
+    // This test checks checkpoint nakamaing, not difficulty adjustment.
     let target_bits = ledger
         .chain
         .block(&Height(0))
@@ -541,7 +541,7 @@ fn explorer_tx_index_finds_canonical_transaction() {
     let mnemonic = wallet::encode_bip39_mnemonic(&[0x31; 16]).unwrap();
 
     let sender =
-        wallet::account_wallet_from_bip39_mnemonic(&mnemonic, kernel::crypto::Signature::MlDsa44)
+        wallet::nakama_wallet_from_bip39_mnemonic(&mnemonic, kernel::crypto::Signature::MlDsa44)
             .unwrap();
 
     let recipient = Address([0x32; kernel::crypto::ADDRESS_SIZE]);
@@ -559,7 +559,7 @@ fn explorer_tx_index_finds_canonical_transaction() {
 
     let transaction =
         AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_account_intent(intent).unwrap(),
+            spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }));
 
@@ -682,7 +682,7 @@ fn explorer_index_extends_after_canonical_append() {
     let make_transaction = |seed_byte: u8, input_byte: u8, recipient_byte: u8| {
         let mnemonic = wallet::encode_bip39_mnemonic(&[seed_byte; 16]).unwrap();
 
-        let sender = wallet::account_wallet_from_bip39_mnemonic(
+        let sender = wallet::nakama_wallet_from_bip39_mnemonic(
             &mnemonic,
             kernel::crypto::Signature::MlDsa44,
         )
@@ -700,7 +700,7 @@ fn explorer_index_extends_after_canonical_append() {
         .unwrap();
 
         AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_account_intent(intent).unwrap(),
+            spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }))
     };
@@ -786,7 +786,7 @@ fn explorer_index_rebuilds_after_reorg_and_drops_orphan_transaction() {
     let make_transaction = |seed_byte: u8, input_byte: u8, recipient_byte: u8| {
         let mnemonic = wallet::encode_bip39_mnemonic(&[seed_byte; 16]).unwrap();
 
-        let sender = wallet::account_wallet_from_bip39_mnemonic(
+        let sender = wallet::nakama_wallet_from_bip39_mnemonic(
             &mnemonic,
             kernel::crypto::Signature::MlDsa44,
         )
@@ -804,7 +804,7 @@ fn explorer_index_rebuilds_after_reorg_and_drops_orphan_transaction() {
         .unwrap();
 
         AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_account_intent(intent).unwrap(),
+            spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }))
     };
@@ -901,7 +901,7 @@ fn explorer_address_index_rebuilds_after_reorg() {
     let make_transaction = |seed_byte: u8, input_byte: u8, recipient: Address| {
         let mnemonic = wallet::encode_bip39_mnemonic(&[seed_byte; 16]).unwrap();
 
-        let sender = wallet::account_wallet_from_bip39_mnemonic(
+        let sender = wallet::nakama_wallet_from_bip39_mnemonic(
             &mnemonic,
             kernel::crypto::Signature::MlDsa44,
         )
@@ -917,7 +917,7 @@ fn explorer_address_index_rebuilds_after_reorg() {
         .unwrap();
 
         AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_account_intent(intent).unwrap(),
+            spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }))
     };
@@ -1208,7 +1208,7 @@ fn explorer_index_rebuilds_after_deep_reorg_to_longer_branch() {
     let make_transaction = |seed_byte: u8, input_byte: u8, recipient_byte: u8| {
         let mnemonic = wallet::encode_bip39_mnemonic(&[seed_byte; 16]).unwrap();
 
-        let sender = wallet::account_wallet_from_bip39_mnemonic(
+        let sender = wallet::nakama_wallet_from_bip39_mnemonic(
             &mnemonic,
             kernel::crypto::Signature::MlDsa44,
         )
@@ -1226,7 +1226,7 @@ fn explorer_index_rebuilds_after_deep_reorg_to_longer_branch() {
         .unwrap();
 
         AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_account_intent(intent).unwrap(),
+            spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }))
     };

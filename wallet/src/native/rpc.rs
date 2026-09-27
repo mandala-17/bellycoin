@@ -5,15 +5,15 @@ use std::{
 
 use serde::Deserialize;
 
-use super::AccountResponse;
+use super::NakamaResponse;
 
-pub(super) fn fetch_account(rpc: &str, address: &str) -> Result<AccountResponse, String> {
-    let mut response: AccountResponse = http_get_json(rpc, &format!("/account/{address}"))?;
+pub(super) fn fetch_nakama(rpc: &str, address: &str) -> Result<NakamaResponse, String> {
+    let mut response: NakamaResponse = http_get_json(rpc, &format!("/nakama/{address}"))?;
     while let Some(cursor) = response.next_utxo_cursor.clone() {
-        let page: AccountResponse =
-            http_get_json(rpc, &format!("/account/{address}?utxo_after={cursor}"))?;
+        let page: NakamaResponse =
+            http_get_json(rpc, &format!("/nakama/{address}?utxo_after={cursor}"))?;
         if page.utxos.is_empty() {
-            return Err("node returned an invalid empty account page".into());
+            return Err("node returned an invalid empty nakama page".into());
         }
         response.utxos.extend(page.utxos);
         response.next_utxo_offset = page.next_utxo_offset;

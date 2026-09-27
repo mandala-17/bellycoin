@@ -1,4 +1,4 @@
-use super::rpc::fetch_account;
+use super::rpc::fetch_nakama;
 use super::*;
 
 pub(super) fn print_utxo_tracker(args: &[String]) -> Result<(), String> {
@@ -7,12 +7,12 @@ pub(super) fn print_utxo_tracker(args: &[String]) -> Result<(), String> {
     let bytes =
         Zeroizing::new(fs::read(path).map_err(|error| format!("failed to read {path}: {error}"))?);
     let address = kernel::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
-    let account = fetch_account(rpc, &address)?;
+    let nakama = fetch_nakama(rpc, &address)?;
 
     println!("address: {address}");
-    println!("next height: {}", account.next_height);
-    println!("utxos: {}", account.utxos.len());
-    let mut utxos = account.utxos.iter().collect::<Vec<_>>();
+    println!("next height: {}", nakama.next_height);
+    println!("utxos: {}", nakama.utxos.len());
+    let mut utxos = nakama.utxos.iter().collect::<Vec<_>>();
     utxos.sort_by(|left, right| left.id.cmp(&right.id));
     for utxo in utxos {
         println!("- utxo: {}  {}", utxo.id, format_amount(utxo.amount),);

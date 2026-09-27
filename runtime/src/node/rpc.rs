@@ -36,7 +36,7 @@ pub(super) fn serve_rpc_database(database: PathBuf, listen: &str) -> Result<(), 
                             let _ = write_http_response(
                                 &mut stream,
                                 503,
-                                &serde_json::json!({"error": "RPC connection accounting unavailable"}),
+                                &serde_json::json!({"error": "RPC connection nakamaing unavailable"}),
                             );
                             continue;
                         }
@@ -149,36 +149,36 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
                     .ok_or("block was not found")?,
             )?
         }
-        route if route.starts_with("/account/") => {
-            let account_route = route.trim_start_matches("/account/");
-            let (address, query) = account_route.split_once('?').unwrap_or((account_route, ""));
+        route if route.starts_with("/nakama/") => {
+            let nakama_route = route.trim_start_matches("/nakama/");
+            let (address, query) = nakama_route.split_once('?').unwrap_or((nakama_route, ""));
             if address.is_empty() || address.contains(['/', '#']) {
-                return Err("invalid account route".into());
+                return Err("invalid nakama route".into());
             }
             let mut utxo_offset = 0;
             let mut utxo_after = None;
             if !query.is_empty() {
-                let (name, value) = query.split_once('=').ok_or("invalid account query")?;
+                let (name, value) = query.split_once('=').ok_or("invalid nakama query")?;
                 if value.is_empty() || value.contains('&') {
-                    return Err("invalid account query".into());
+                    return Err("invalid nakama query".into());
                 }
                 match name {
                     "utxo_offset" => {
                         utxo_offset = value
                             .parse::<usize>()
-                            .map_err(|_| "invalid account UTXO offset")?;
+                            .map_err(|_| "invalid nakama UTXO offset")?;
                     }
                     "utxo_after" => {
                         utxo_after = Some(
                             value
                                 .parse::<UtxoRef>()
-                                .map_err(|_| "invalid account UTXO cursor")?,
+                                .map_err(|_| "invalid nakama UTXO cursor")?,
                         );
                     }
-                    _ => return Err("invalid account query".into()),
+                    _ => return Err("invalid nakama query".into()),
                 }
             }
-            account_response(
+            nakama_response(
                 &ledger,
                 &read_mempool(database)?,
                 parse_address(address)?,

@@ -6,7 +6,7 @@ use std::io::Read;
 mod tests {
     use super::*;
 
-    fn utxo_status(utxo: &AccountUtxo) -> &'static str {
+    fn utxo_status(utxo: &NakamaUtxo) -> &'static str {
         if utxo.reserved {
             "reserved"
         } else {
@@ -98,23 +98,23 @@ mod tests {
 
     #[test]
     fn utxo_status_and_amount_format_are_canonical() {
-        let account = AccountResponse {
+        let nakama = NakamaResponse {
             next_height: 100,
             _utxo_snapshot: "test-snapshot".into(),
             next_utxo_offset: None,
             next_utxo_cursor: None,
             utxos: vec![
-                AccountUtxo {
+                NakamaUtxo {
                     id: "available-one".into(),
                     amount: 2 * Pearl::PEARL_PER_COIN,
                     reserved: false,
                 },
-                AccountUtxo {
+                NakamaUtxo {
                     id: "available-two".into(),
                     amount: 3 * Pearl::PEARL_PER_COIN,
                     reserved: false,
                 },
-                AccountUtxo {
+                NakamaUtxo {
                     id: "reserved".into(),
                     amount: Pearl::PEARL_PER_COIN,
                     reserved: true,
@@ -126,8 +126,8 @@ mod tests {
             format_amount(2 * Pearl::PEARL_PER_COIN + 1),
             "2.000001 COIN"
         );
-        assert_eq!(utxo_status(&account.utxos[0]), "available");
-        assert_eq!(utxo_status(&account.utxos[1]), "available");
-        assert_eq!(utxo_status(&account.utxos[2]), "reserved");
+        assert_eq!(utxo_status(&nakama.utxos[0]), "available");
+        assert_eq!(utxo_status(&nakama.utxos[1]), "available");
+        assert_eq!(utxo_status(&nakama.utxos[2]), "reserved");
     }
 }

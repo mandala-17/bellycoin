@@ -21,15 +21,15 @@ pub const FALCON_1024_SIGNATURE_SIZE: usize = 1280;
 )]
 #[repr(u8)]
 #[borsh(use_discriminant = true)]
-pub enum AccountSignatureScheme {
+pub enum NakamaSignatureScheme {
     Falcon512 = 1,
     Falcon1024 = 2,
 }
 
 /// Compatibility alias for existing code.
-pub type Signature = AccountSignatureScheme;
+pub type Signature = NakamaSignatureScheme;
 
-impl AccountSignatureScheme {
+impl NakamaSignatureScheme {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Falcon512 => "falcon512",
@@ -63,7 +63,7 @@ impl AccountSignatureScheme {
     }
 }
 
-impl std::str::FromStr for AccountSignatureScheme {
+impl std::str::FromStr for NakamaSignatureScheme {
     type Err = &'static str;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
@@ -75,7 +75,7 @@ impl std::str::FromStr for AccountSignatureScheme {
     }
 }
 
-impl std::fmt::Display for AccountSignatureScheme {
+impl std::fmt::Display for NakamaSignatureScheme {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(self.as_str())
     }
@@ -83,13 +83,13 @@ impl std::fmt::Display for AccountSignatureScheme {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublicKey {
-    pub account: AccountSignatureScheme,
+    pub nakama: NakamaSignatureScheme,
     pub bytes: Vec<u8>,
 }
 
 impl PublicKey {
-    pub const fn scheme(&self) -> AccountSignatureScheme {
-        self.account
+    pub const fn scheme(&self) -> NakamaSignatureScheme {
+        self.nakama
     }
 
     pub fn is_valid_encoding(&self) -> bool {
@@ -103,23 +103,23 @@ impl BorshSerialize for PublicKey {
         if !self.is_valid_encoding() {
             return Err(invalid_length(
                 "public key",
-                self.account.public_key_size(),
+                self.nakama.public_key_size(),
                 self.bytes.len(),
             ));
         }
 
-        self.account.serialize(writer)?;
+        self.nakama.serialize(writer)?;
         self.bytes.serialize(writer)
     }
 }
 
 impl BorshDeserialize for PublicKey {
     fn deserialize_reader<R: Read>(reader: &mut R) -> io::Result<Self> {
-        let account = AccountSignatureScheme::deserialize_reader(reader)?;
+        let nakama = NakamaSignatureScheme::deserialize_reader(reader)?;
 
         let length = u32::deserialize_reader(reader)? as usize;
 
-        let expected = account.public_key_size();
+        let expected = nakama.public_key_size();
 
         if length != expected {
             return Err(invalid_length("public key", expected, length));
@@ -129,26 +129,26 @@ impl BorshDeserialize for PublicKey {
 
         reader.read_exact(&mut bytes)?;
 
-        if !valid_public_key(account, &bytes) {
+        if !valid_public_key(nakama, &bytes) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "invalid Falcon public key",
             ));
         }
 
-        Ok(Self { account, bytes })
+        Ok(Self { nakama, bytes })
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AccountSignature {
-    pub account: AccountSignatureScheme,
+pub struct NakamaSignature {
+    pub nakama: NakamaSignatureScheme,
     pub bytes: Vec<u8>,
 }
 
-impl AccountSignature {
-    pub const fn scheme(&self) -> AccountSignatureScheme {
-        self.account
+impl NakamaSignature {
+    pub const fn scheme(&self) -> NakamaSignatureScheme {
+        self.nakama
     }
 
     pub fn is_valid_encoding(&self) -> bool {
@@ -156,28 +156,28 @@ impl AccountSignature {
     }
 }
 
-impl BorshSerialize for AccountSignature {
+impl BorshSerialize for NakamaSignature {
     fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         if !self.is_valid_encoding() {
             return Err(invalid_length(
                 "signature",
-                self.account.signature_size(),
+                self.nakama.signature_size(),
                 self.bytes.len(),
             ));
         }
 
-        self.account.serialize(writer)?;
+        self.nakama.serialize(writer)?;
         self.bytes.serialize(writer)
     }
 }
 
-impl BorshDeserialize for AccountSignature {
+impl BorshDeserialize for NakamaSignature {
     fn deserialize_reader<R: Read>(reader: &mut R) -> io::Result<Self> {
-        let account = AccountSignatureScheme::deserialize_reader(reader)?;
+        let nakama = NakamaSignatureScheme::deserialize_reader(reader)?;
 
         let length = u32::deserialize_reader(reader)? as usize;
 
-        let expected = account.signature_size();
+        let expected = nakama.signature_size();
 
         if length != expected {
             return Err(invalid_length("signature", expected, length));
@@ -187,12 +187,12 @@ impl BorshDeserialize for AccountSignature {
 
         reader.read_exact(&mut bytes)?;
 
-        Ok(Self { account, bytes })
+        Ok(Self { nakama, bytes })
     }
 }
 
 pub struct SigningSeed {
-    account: AccountSignatureScheme,
+    nakama: NakamaSignatureScheme,
     seed: Box<[u8; 32]>,
 }
 
@@ -208,31 +208,31 @@ impl std::fmt::Debug for SigningSeed {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("SigningSeed")
-            .field("scheme", &self.account)
+            .field("scheme", &self.nakama)
             .field("seed", &"[REDACTED]")
             .finish()
     }
 }
 
 impl SigningSeed {
-    pub fn new(account: AccountSignatureScheme, seed: Box<[u8; 32]>) -> Self {
-        Self { account, seed }
+    pub fn new(nakama: NakamaSignatureScheme, seed: Box<[u8; 32]>) -> Self {
+        Self { nakama, seed }
     }
 
-    pub const fn scheme(&self) -> AccountSignatureScheme {
-        self.account
+    pub const fn scheme(&self) -> NakamaSignatureScheme {
+        self.nakama
     }
 
-    pub const fn account(&self) -> AccountSignatureScheme {
-        self.account
+    pub const fn nakama(&self) -> NakamaSignatureScheme {
+        self.nakama
     }
 
     pub fn public_key(&self) -> PublicKey {
-        public_key_from_seed(self.account, self.seed.as_ref())
+        public_key_from_seed(self.nakama, self.seed.as_ref())
     }
 
-    pub fn sign(&self, message: &[u8]) -> AccountSignature {
-        sign_from_seed(self.account, self.seed.as_ref(), message)
+    pub fn sign(&self, message: &[u8]) -> NakamaSignature {
+        sign_from_seed(self.nakama, self.seed.as_ref(), message)
     }
 
     pub fn dangerous_export_seed(&self) -> Zeroizing<[u8; 32]> {
@@ -244,28 +244,28 @@ impl SigningSeed {
     }
 }
 
-pub fn public_key_from_seed(account: AccountSignatureScheme, seed: &[u8; 32]) -> PublicKey {
-    let (_, public) = keypair_bytes_from_seed(account, seed);
+pub fn public_key_from_seed(nakama: NakamaSignatureScheme, seed: &[u8; 32]) -> PublicKey {
+    let (_, public) = keypair_bytes_from_seed(nakama, seed);
 
-    debug_assert_eq!(public.len(), account.public_key_size(),);
+    debug_assert_eq!(public.len(), nakama.public_key_size(),);
 
     PublicKey {
-        account,
+        nakama,
         bytes: public,
     }
 }
 
 pub fn sign_from_seed(
-    account: AccountSignatureScheme,
+    nakama: NakamaSignatureScheme,
     seed: &[u8; 32],
     message: &[u8],
-) -> AccountSignature {
-    let (secret, _) = keypair_bytes_from_seed(account, seed);
+) -> NakamaSignature {
+    let (secret, _) = keypair_bytes_from_seed(nakama, seed);
 
-    let mut signature = vec![0_u8; account.signature_size()];
+    let mut signature = vec![0_u8; nakama.signature_size()];
 
-    let result = match account {
-        AccountSignatureScheme::Falcon512 => SigningKey512::decode(&secret)
+    let result = match nakama {
+        NakamaSignatureScheme::Falcon512 => SigningKey512::decode(&secret)
             .expect("generated Falcon-512 secret key must decode")
             .sign(
                 &mut OsRng,
@@ -275,7 +275,7 @@ pub fn sign_from_seed(
                 &mut signature,
             ),
 
-        AccountSignatureScheme::Falcon1024 => SigningKey1024::decode(&secret)
+        NakamaSignatureScheme::Falcon1024 => SigningKey1024::decode(&secret)
             .expect("generated Falcon-1024 secret key must decode")
             .sign(
                 &mut OsRng,
@@ -288,13 +288,13 @@ pub fn sign_from_seed(
 
     result.expect("Falcon signing failed");
 
-    AccountSignature {
-        account,
+    NakamaSignature {
+        nakama,
         bytes: signature,
     }
 }
 
-pub fn verify(public_key: &PublicKey, message: &[u8], signature: &AccountSignature) -> bool {
+pub fn verify(public_key: &PublicKey, message: &[u8], signature: &NakamaSignature) -> bool {
     if public_key.scheme() != signature.scheme() {
         return false;
     }
@@ -304,7 +304,7 @@ pub fn verify(public_key: &PublicKey, message: &[u8], signature: &AccountSignatu
     }
 
     match public_key.scheme() {
-        AccountSignatureScheme::Falcon512 => {
+        NakamaSignatureScheme::Falcon512 => {
             let Some(key) = VerifyingKey512::decode(&public_key.bytes) else {
                 return false;
             };
@@ -312,7 +312,7 @@ pub fn verify(public_key: &PublicKey, message: &[u8], signature: &AccountSignatu
             key.verify(&signature.bytes, &DOMAIN_NONE, &HASH_ID_RAW, message)
         }
 
-        AccountSignatureScheme::Falcon1024 => {
+        NakamaSignatureScheme::Falcon1024 => {
             let Some(key) = VerifyingKey1024::decode(&public_key.bytes) else {
                 return false;
             };
@@ -322,19 +322,19 @@ pub fn verify(public_key: &PublicKey, message: &[u8], signature: &AccountSignatu
     }
 }
 
-fn valid_public_key(account: AccountSignatureScheme, bytes: &[u8]) -> bool {
-    match account {
-        AccountSignatureScheme::Falcon512 => VerifyingKey512::decode(bytes).is_some(),
+fn valid_public_key(nakama: NakamaSignatureScheme, bytes: &[u8]) -> bool {
+    match nakama {
+        NakamaSignatureScheme::Falcon512 => VerifyingKey512::decode(bytes).is_some(),
 
-        AccountSignatureScheme::Falcon1024 => VerifyingKey1024::decode(bytes).is_some(),
+        NakamaSignatureScheme::Falcon1024 => VerifyingKey1024::decode(bytes).is_some(),
     }
 }
 
-fn keypair_bytes_from_seed(account: AccountSignatureScheme, seed: &[u8; 32]) -> (Vec<u8>, Vec<u8>) {
-    let mut rng = SeedRng::new(account, *seed);
+fn keypair_bytes_from_seed(nakama: NakamaSignatureScheme, seed: &[u8; 32]) -> (Vec<u8>, Vec<u8>) {
+    let mut rng = SeedRng::new(nakama, *seed);
 
-    match account {
-        AccountSignatureScheme::Falcon512 => {
+    match nakama {
+        NakamaSignatureScheme::Falcon512 => {
             let mut secret = vec![0_u8; 1345];
 
             let mut public = vec![0_u8; FALCON_512_PUBLIC_KEY_SIZE];
@@ -349,7 +349,7 @@ fn keypair_bytes_from_seed(account: AccountSignatureScheme, seed: &[u8; 32]) -> 
             (secret, public)
         }
 
-        AccountSignatureScheme::Falcon1024 => {
+        NakamaSignatureScheme::Falcon1024 => {
             let mut secret = vec![0_u8; 2369];
 
             let mut public = vec![0_u8; FALCON_1024_PUBLIC_KEY_SIZE];
@@ -371,7 +371,7 @@ struct SeedRng {
     seed: [u8; 32],
 
     #[zeroize(skip)]
-    account: AccountSignatureScheme,
+    nakama: NakamaSignatureScheme,
 
     counter: u64,
     block: [u8; 32],
@@ -379,10 +379,10 @@ struct SeedRng {
 }
 
 impl SeedRng {
-    fn new(account: AccountSignatureScheme, seed: [u8; 32]) -> Self {
+    fn new(nakama: NakamaSignatureScheme, seed: [u8; 32]) -> Self {
         Self {
             seed,
-            account,
+            nakama,
             counter: 0,
             block: [0; 32],
             offset: 32,
@@ -394,7 +394,7 @@ impl SeedRng {
 
         hash.update(b"BELLY Falcon deterministic keygen");
 
-        hash.update(self.account.logn().to_le_bytes());
+        hash.update(self.nakama.logn().to_le_bytes());
 
         hash.update(self.seed);
 
@@ -464,10 +464,10 @@ mod tests {
 
     const MESSAGE: &[u8] = b"belly falcon signature test";
 
-    fn schemes() -> [AccountSignatureScheme; 2] {
+    fn schemes() -> [NakamaSignatureScheme; 2] {
         [
-            AccountSignatureScheme::Falcon512,
-            AccountSignatureScheme::Falcon1024,
+            NakamaSignatureScheme::Falcon512,
+            NakamaSignatureScheme::Falcon1024,
         ]
     }
 
@@ -492,13 +492,13 @@ mod tests {
 
     #[test]
     fn expected_sizes() {
-        assert_eq!(AccountSignatureScheme::Falcon512.public_key_size(), 897,);
+        assert_eq!(NakamaSignatureScheme::Falcon512.public_key_size(), 897,);
 
-        assert_eq!(AccountSignatureScheme::Falcon512.signature_size(), 666,);
+        assert_eq!(NakamaSignatureScheme::Falcon512.signature_size(), 666,);
 
-        assert_eq!(AccountSignatureScheme::Falcon1024.public_key_size(), 1793,);
+        assert_eq!(NakamaSignatureScheme::Falcon1024.public_key_size(), 1793,);
 
-        assert_eq!(AccountSignatureScheme::Falcon1024.signature_size(), 1280,);
+        assert_eq!(NakamaSignatureScheme::Falcon1024.signature_size(), 1280,);
     }
 
     #[test]
@@ -514,9 +514,9 @@ mod tests {
 
     #[test]
     fn cross_level_is_rejected() {
-        let seed_512 = SigningSeed::new(AccountSignatureScheme::Falcon512, Box::new([11; 32]));
+        let seed_512 = SigningSeed::new(NakamaSignatureScheme::Falcon512, Box::new([11; 32]));
 
-        let seed_1024 = SigningSeed::new(AccountSignatureScheme::Falcon1024, Box::new([22; 32]));
+        let seed_1024 = SigningSeed::new(NakamaSignatureScheme::Falcon1024, Box::new([22; 32]));
 
         let public_512 = seed_512.public_key();
 
@@ -544,7 +544,7 @@ mod tests {
 
             let decoded_public = PublicKey::try_from_slice(&public_bytes).unwrap();
 
-            let decoded_signature = AccountSignature::try_from_slice(&signature_bytes).unwrap();
+            let decoded_signature = NakamaSignature::try_from_slice(&signature_bytes).unwrap();
 
             assert_eq!(decoded_public, public,);
 

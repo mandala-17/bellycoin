@@ -208,9 +208,9 @@ pub fn run(args: Vec<String>) -> Result<(), String> {
             args.get(2).ok_or("missing transaction hex")?,
         ),
         Some("mempool") => mempool::print_mempool(args.get(1).map(String::as_str)),
-        Some("account") => explorer::print_account(
+        Some("nakama") => explorer::print_nakama(
             args.get(1).map(String::as_str),
-            args.get(2).ok_or("missing account address")?,
+            args.get(2).ok_or("missing nakama address")?,
         ),
         Some("rpc") => rpc::serve_rpc(
             args.get(1).map(String::as_str),
