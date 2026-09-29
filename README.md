@@ -248,7 +248,7 @@ The workspace is organized into several Rust crates:
 bellycoin/
 ├── common/
 ├── crypto/
-├── kernel/
+├── bellycoin/
 ├── runtime/
 ├── wallet/
 ├── depend/
@@ -278,7 +278,7 @@ signatures
 verification
 ```
 
-### `kernel`
+### `bellycoin`
 
 Consensus-critical blockchain logic:
 
@@ -356,7 +356,7 @@ cargo build --release
 Build individual components:
 
 ```bash
-cargo build -p kernel
+cargo build -p bellycoin
 cargo build -p crypto
 cargo build -p wallet
 cargo build -p node
@@ -375,7 +375,7 @@ cargo check
 For a specific crate:
 
 ```bash
-cargo check -p kernel
+cargo check -p bellycoin
 cargo check -p wallet
 cargo check -p node
 ```

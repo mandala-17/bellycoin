@@ -147,7 +147,7 @@ pub(super) fn default_p2p_listen() -> &'static str {
 
 #[cfg(feature = "mainnet")]
 pub(super) fn default_rpc_listen() -> &'static str {
-    "127.0.0.1:6666"
+    "127.0.0.1:4444"
 }
 
 #[cfg(feature = "mainnet")]

@@ -1,4 +1,4 @@
-//! Central error definitions for the kernel crate.
+//! Central error definitions for the bellycoin crate.
 
 pub use blockchain_errors::*;
 

@@ -38,17 +38,17 @@ fn embedded_api_documentation_is_valid_and_references_every_rpc_route() {
 
 #[test]
 fn asset_transaction_projection_exposes_asset_and_action() {
-    let chain = kernel::genesis::chain_context().unwrap();
+    let chain = bellycoin::genesis::chain_context().unwrap();
     let seed =
-        kernel::crypto::SigningSeed::new(kernel::crypto::Signature::MlDsa44, Box::new([0x51; 32]));
+        bellycoin::crypto::SigningSeed::new(bellycoin::crypto::Signature::MlDsa44, Box::new([0x51; 32]));
     let public_key = seed.public_key();
-    let signer = kernel::crypto::address_from_public_key(&public_key);
-    let asset_call = kernel::transaction::AssetIntent::new(
-        kernel::transaction::AssetInstruction::Register {
+    let signer = bellycoin::crypto::address_from_public_key(&public_key);
+    let asset_call = bellycoin::transaction::AssetIntent::new(
+        bellycoin::transaction::AssetInstruction::Register {
             name: "Test Token".into(),
             decimals: 8,
-            max_supply: kernel::native::asset::Unit::from_units(100_000_000_000_000_000_000_000),
-            initial_mint: kernel::native::asset::Unit::from_units(1_000_000),
+            max_supply: bellycoin::native::asset::Unit::from_units(100_000_000_000_000_000_000_000),
+            initial_mint: bellycoin::native::asset::Unit::from_units(1_000_000),
             mint_authority: signer,
             nonce: 0,
         },
@@ -56,26 +56,26 @@ fn asset_transaction_projection_exposes_asset_and_action() {
     );
     let signature = seed.sign(&asset_call.commitment(chain.genesis_hash).unwrap());
     let asset = asset_call.asset().unwrap().to_string();
-    let transaction = kernel::transaction::AuthorizedAssetTransaction {
-        call: kernel::transaction::AuthorizedNakamaIntent {
+    let transaction = bellycoin::transaction::AuthorizedAssetTransaction {
+        call: bellycoin::transaction::AuthorizedNakamaIntent {
             intent: asset_call,
-            authorization: kernel::transaction::NakamaAuthorization {
+            authorization: bellycoin::transaction::NakamaAuthorization {
                 public_key,
                 signature,
             },
         },
-        payment: kernel::transaction::AuthorizedNakamaIntent {
-            intent: kernel::transaction::SpendIntent {
+        payment: bellycoin::transaction::AuthorizedNakamaIntent {
+            intent: bellycoin::transaction::SpendIntent {
                 signer: Address::ZERO,
-                spend: kernel::transaction::Spend::Coin {
+                spend: bellycoin::transaction::Spend::Coin {
                     inputs: vec![],
                     outputs: vec![],
                 },
             },
-            authorization: kernel::transaction::NakamaAuthorization {
+            authorization: bellycoin::transaction::NakamaAuthorization {
                 public_key: seed.public_key(),
-                signature: kernel::crypto::NakamaSignature {
-                    nakama: kernel::crypto::Signature::MlDsa44,
+                signature: bellycoin::crypto::NakamaSignature {
+                    nakama: bellycoin::crypto::Signature::MlDsa44,
                     bytes: vec![],
                 },
             },
@@ -104,14 +104,14 @@ fn explorer_miner_fee_uses_block_miner_output() {
 #[test]
 fn nakama_projection_lists_asset_supply_and_creator_shares() {
     let seed =
-        kernel::crypto::SigningSeed::new(kernel::crypto::Signature::MlDsa44, Box::new([0x61; 32]));
-    let authority = kernel::crypto::address_from_public_key(&seed.public_key());
-    let call = kernel::transaction::AssetIntent::new(
-        kernel::transaction::AssetInstruction::Register {
+        bellycoin::crypto::SigningSeed::new(bellycoin::crypto::Signature::MlDsa44, Box::new([0x61; 32]));
+    let authority = bellycoin::crypto::address_from_public_key(&seed.public_key());
+    let call = bellycoin::transaction::AssetIntent::new(
+        bellycoin::transaction::AssetInstruction::Register {
             name: "Authority Asset".into(),
             decimals: 0,
-            max_supply: kernel::native::asset::Unit::from_units(10),
-            initial_mint: kernel::native::asset::Unit::from_units(4),
+            max_supply: bellycoin::native::asset::Unit::from_units(10),
+            initial_mint: bellycoin::native::asset::Unit::from_units(4),
             mint_authority: authority,
             nonce: 0,
         },
@@ -132,18 +132,18 @@ fn nakama_projection_lists_asset_supply_and_creator_shares() {
     assert_eq!(assets[0]["shares"].as_array().unwrap().len(), 1);
     assert_eq!(assets[0]["shares"][0]["amount"], "4");
     assert!(
-        assets[0]["shares"][0]["share_id"].as_str().unwrap().len() == kernel::crypto::HASH_SIZE * 2
+        assets[0]["shares"][0]["share_id"].as_str().unwrap().len() == bellycoin::crypto::HASH_SIZE * 2
     );
 }
 
 #[test]
 fn explorer_address_response_is_aggregate_only() {
-    let ledger = kernel::genesis::genesis_ledger().unwrap();
+    let ledger = bellycoin::genesis::genesis_ledger().unwrap();
     let response = explorer_address_response(
         Path::new("test explorer address"),
         &ledger,
         &[],
-        Address([7; kernel::crypto::ADDRESS_SIZE]),
+        Address([7; bellycoin::crypto::ADDRESS_SIZE]),
         true,
         DEFAULT_ADDRESS_ACTIVITY_LIMIT,
         None,
@@ -158,9 +158,9 @@ fn explorer_address_response_is_aggregate_only() {
 fn explorer_address_pagination_rebuilds_after_reorg() {
     let database = test_database("explorer-address-pagination-reorg");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner = Address([0x92; kernel::crypto::ADDRESS_SIZE]);
+    let miner = Address([0x92; bellycoin::crypto::ADDRESS_SIZE]);
 
     let target_bits = ledger
         .chain
@@ -253,9 +253,9 @@ fn explorer_address_pagination_rebuilds_after_reorg() {
 fn explorer_address_pagination_advances_when_emissions_are_hidden() {
     let database = test_database("explorer-address-pagination-hidden-emissions");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner = Address([0x93; kernel::crypto::ADDRESS_SIZE]);
+    let miner = Address([0x93; bellycoin::crypto::ADDRESS_SIZE]);
 
     let target_bits = ledger
         .chain
@@ -325,14 +325,14 @@ fn explorer_address_pagination_advances_when_emissions_are_hidden() {
 fn explorer_activity_reports_net_transfer_for_sender_and_recipient() {
     let mnemonic = wallet::encode_bip39_mnemonic(&[3; 16]).unwrap();
     let sender =
-        wallet::nakama_wallet_from_bip39_mnemonic(&mnemonic, kernel::crypto::Signature::MlDsa44)
+        wallet::nakama_wallet_from_bip39_mnemonic(&mnemonic, bellycoin::crypto::Signature::MlDsa44)
             .unwrap();
-    let recipient = Address([4; kernel::crypto::ADDRESS_SIZE]);
-    let miner = Address([5; kernel::crypto::ADDRESS_SIZE]);
-    let intent = kernel::transaction::SpendIntent::coin(
+    let recipient = Address([4; bellycoin::crypto::ADDRESS_SIZE]);
+    let miner = Address([5; bellycoin::crypto::ADDRESS_SIZE]);
+    let intent = bellycoin::transaction::SpendIntent::coin(
         sender.address,
-        vec![kernel::native::coin::XPQ::from_bytes(
-            [6; kernel::native::coin::XPQ::SIZE],
+        vec![bellycoin::native::coin::XPQ::from_bytes(
+            [6; bellycoin::native::coin::XPQ::SIZE],
         )],
         vec![
             CoinOutput::new(recipient, Pearl::from_pearl(10)),
@@ -341,7 +341,7 @@ fn explorer_activity_reports_net_transfer_for_sender_and_recipient() {
     )
     .unwrap();
     let transaction =
-        AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
+        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
             spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }));
@@ -373,7 +373,7 @@ fn explorer_activity_reports_net_transfer_for_sender_and_recipient() {
     assert!(
         address_transaction_activity(
             &transaction,
-            Address([9; kernel::crypto::ADDRESS_SIZE]),
+            Address([9; bellycoin::crypto::ADDRESS_SIZE]),
             &block,
         )
         .unwrap()
@@ -392,7 +392,7 @@ fn read_test_http_request(parts: &[&[u8]]) -> Result<HttpRequest, String> {
 
 fn test_database(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!(
-        "kernel-node-{label}-{}-{}",
+        "bellycoin-node-{label}-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -455,7 +455,7 @@ fn sequential_header_metrics(ledger: &Ledger, target_height: Height) -> (Work, u
             .block(&height)
             .expect("sequential test block exists");
 
-        let block_work = kernel::consensus::block_work(block.target_bits())
+        let block_work = bellycoin::consensus::block_work(block.target_bits())
             .expect("synthetic target bits are valid");
 
         cumulative_work = cumulative_work.saturating_add(block_work);
@@ -468,9 +468,9 @@ fn sequential_header_metrics(ledger: &Ledger, target_height: Height) -> (Work, u
 
 #[test]
 fn checkpoint_state_matches_sequential_state_at_boundaries() {
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner = Address([0x73; kernel::crypto::ADDRESS_SIZE]);
+    let miner = Address([0x73; bellycoin::crypto::ADDRESS_SIZE]);
 
     while ledger.tip_height() != Some(Height(512)) {
         append_synthetic_header_block(&mut ledger, miner);
@@ -519,7 +519,7 @@ fn checkpoint_state_matches_sequential_state_at_boundaries() {
             "difficulty anchor mismatch at height {value}",
         );
 
-        if kernel::consensus::RECENT_HEADER_WINDOW > 0 {
+        if bellycoin::consensus::RECENT_HEADER_WINDOW > 0 {
             assert_eq!(
                 state
                     .recent_headers
@@ -536,29 +536,29 @@ fn checkpoint_state_matches_sequential_state_at_boundaries() {
 fn explorer_tx_index_finds_canonical_transaction() {
     let database = test_database("tx-index");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
     let mnemonic = wallet::encode_bip39_mnemonic(&[0x31; 16]).unwrap();
 
     let sender =
-        wallet::nakama_wallet_from_bip39_mnemonic(&mnemonic, kernel::crypto::Signature::MlDsa44)
+        wallet::nakama_wallet_from_bip39_mnemonic(&mnemonic, bellycoin::crypto::Signature::MlDsa44)
             .unwrap();
 
-    let recipient = Address([0x32; kernel::crypto::ADDRESS_SIZE]);
+    let recipient = Address([0x32; bellycoin::crypto::ADDRESS_SIZE]);
 
-    let miner = Address([0x33; kernel::crypto::ADDRESS_SIZE]);
+    let miner = Address([0x33; bellycoin::crypto::ADDRESS_SIZE]);
 
-    let intent = kernel::transaction::SpendIntent::coin(
+    let intent = bellycoin::transaction::SpendIntent::coin(
         sender.address,
-        vec![kernel::native::coin::XPQ::from_bytes(
-            [0x34; kernel::native::coin::XPQ::SIZE],
+        vec![bellycoin::native::coin::XPQ::from_bytes(
+            [0x34; bellycoin::native::coin::XPQ::SIZE],
         )],
         vec![CoinOutput::new(recipient, Pearl::from_pearl(10))],
     )
     .unwrap();
 
     let transaction =
-        AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
+        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
             spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }));
@@ -675,31 +675,31 @@ fn handshake_rejects_a_different_wire_version() {
 fn explorer_index_extends_after_canonical_append() {
     let database = test_database("explorer-index-append");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner = Address([0x41; kernel::crypto::ADDRESS_SIZE]);
+    let miner = Address([0x41; bellycoin::crypto::ADDRESS_SIZE]);
 
     let make_transaction = |seed_byte: u8, input_byte: u8, recipient_byte: u8| {
         let mnemonic = wallet::encode_bip39_mnemonic(&[seed_byte; 16]).unwrap();
 
         let sender = wallet::nakama_wallet_from_bip39_mnemonic(
             &mnemonic,
-            kernel::crypto::Signature::MlDsa44,
+            bellycoin::crypto::Signature::MlDsa44,
         )
         .unwrap();
 
-        let recipient = Address([recipient_byte; kernel::crypto::ADDRESS_SIZE]);
+        let recipient = Address([recipient_byte; bellycoin::crypto::ADDRESS_SIZE]);
 
-        let intent = kernel::transaction::SpendIntent::coin(
+        let intent = bellycoin::transaction::SpendIntent::coin(
             sender.address,
-            vec![kernel::native::coin::XPQ::from_bytes(
-                [input_byte; kernel::native::coin::XPQ::SIZE],
+            vec![bellycoin::native::coin::XPQ::from_bytes(
+                [input_byte; bellycoin::native::coin::XPQ::SIZE],
             )],
             vec![CoinOutput::new(recipient, Pearl::from_pearl(10))],
         )
         .unwrap();
 
-        AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
+        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
             spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }))
@@ -777,33 +777,33 @@ fn explorer_index_extends_after_canonical_append() {
 fn explorer_index_rebuilds_after_reorg_and_drops_orphan_transaction() {
     let database = test_database("explorer-index-reorg");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner_a = Address([0x51; kernel::crypto::ADDRESS_SIZE]);
+    let miner_a = Address([0x51; bellycoin::crypto::ADDRESS_SIZE]);
 
-    let miner_b = Address([0x52; kernel::crypto::ADDRESS_SIZE]);
+    let miner_b = Address([0x52; bellycoin::crypto::ADDRESS_SIZE]);
 
     let make_transaction = |seed_byte: u8, input_byte: u8, recipient_byte: u8| {
         let mnemonic = wallet::encode_bip39_mnemonic(&[seed_byte; 16]).unwrap();
 
         let sender = wallet::nakama_wallet_from_bip39_mnemonic(
             &mnemonic,
-            kernel::crypto::Signature::MlDsa44,
+            bellycoin::crypto::Signature::MlDsa44,
         )
         .unwrap();
 
-        let recipient = Address([recipient_byte; kernel::crypto::ADDRESS_SIZE]);
+        let recipient = Address([recipient_byte; bellycoin::crypto::ADDRESS_SIZE]);
 
-        let intent = kernel::transaction::SpendIntent::coin(
+        let intent = bellycoin::transaction::SpendIntent::coin(
             sender.address,
-            vec![kernel::native::coin::XPQ::from_bytes(
-                [input_byte; kernel::native::coin::XPQ::SIZE],
+            vec![bellycoin::native::coin::XPQ::from_bytes(
+                [input_byte; bellycoin::native::coin::XPQ::SIZE],
             )],
             vec![CoinOutput::new(recipient, Pearl::from_pearl(10))],
         )
         .unwrap();
 
-        AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
+        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
             spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }))
@@ -890,33 +890,33 @@ fn explorer_index_rebuilds_after_reorg_and_drops_orphan_transaction() {
 fn explorer_address_index_rebuilds_after_reorg() {
     let database = test_database("explorer-address-index-reorg");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner_a = Address([0x61; kernel::crypto::ADDRESS_SIZE]);
-    let miner_b = Address([0x62; kernel::crypto::ADDRESS_SIZE]);
+    let miner_a = Address([0x61; bellycoin::crypto::ADDRESS_SIZE]);
+    let miner_b = Address([0x62; bellycoin::crypto::ADDRESS_SIZE]);
 
-    let recipient_a = Address([0x63; kernel::crypto::ADDRESS_SIZE]);
-    let recipient_b = Address([0x64; kernel::crypto::ADDRESS_SIZE]);
+    let recipient_a = Address([0x63; bellycoin::crypto::ADDRESS_SIZE]);
+    let recipient_b = Address([0x64; bellycoin::crypto::ADDRESS_SIZE]);
 
     let make_transaction = |seed_byte: u8, input_byte: u8, recipient: Address| {
         let mnemonic = wallet::encode_bip39_mnemonic(&[seed_byte; 16]).unwrap();
 
         let sender = wallet::nakama_wallet_from_bip39_mnemonic(
             &mnemonic,
-            kernel::crypto::Signature::MlDsa44,
+            bellycoin::crypto::Signature::MlDsa44,
         )
         .unwrap();
 
-        let intent = kernel::transaction::SpendIntent::coin(
+        let intent = bellycoin::transaction::SpendIntent::coin(
             sender.address,
-            vec![kernel::native::coin::XPQ::from_bytes(
-                [input_byte; kernel::native::coin::XPQ::SIZE],
+            vec![bellycoin::native::coin::XPQ::from_bytes(
+                [input_byte; bellycoin::native::coin::XPQ::SIZE],
             )],
             vec![CoinOutput::new(recipient, Pearl::from_pearl(10))],
         )
         .unwrap();
 
-        AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
+        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
             spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }))
@@ -1080,9 +1080,9 @@ fn discovered_peer_response_is_bounded() {
 fn explorer_address_pagination_uses_exclusive_cursor() {
     let database = test_database("explorer-address-pagination");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner = Address([0x91; kernel::crypto::ADDRESS_SIZE]);
+    let miner = Address([0x91; bellycoin::crypto::ADDRESS_SIZE]);
 
     let target_bits = ledger
         .chain
@@ -1201,31 +1201,31 @@ fn rpc_request_reader_rejects_ambiguous_or_oversized_framing() {
 fn explorer_index_rebuilds_after_deep_reorg_to_longer_branch() {
     let database = test_database("explorer-index-deep-reorg");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner = Address([0x71; kernel::crypto::ADDRESS_SIZE]);
+    let miner = Address([0x71; bellycoin::crypto::ADDRESS_SIZE]);
 
     let make_transaction = |seed_byte: u8, input_byte: u8, recipient_byte: u8| {
         let mnemonic = wallet::encode_bip39_mnemonic(&[seed_byte; 16]).unwrap();
 
         let sender = wallet::nakama_wallet_from_bip39_mnemonic(
             &mnemonic,
-            kernel::crypto::Signature::MlDsa44,
+            bellycoin::crypto::Signature::MlDsa44,
         )
         .unwrap();
 
-        let recipient = Address([recipient_byte; kernel::crypto::ADDRESS_SIZE]);
+        let recipient = Address([recipient_byte; bellycoin::crypto::ADDRESS_SIZE]);
 
-        let intent = kernel::transaction::SpendIntent::coin(
+        let intent = bellycoin::transaction::SpendIntent::coin(
             sender.address,
-            vec![kernel::native::coin::XPQ::from_bytes(
-                [input_byte; kernel::native::coin::XPQ::SIZE],
+            vec![bellycoin::native::coin::XPQ::from_bytes(
+                [input_byte; bellycoin::native::coin::XPQ::SIZE],
             )],
             vec![CoinOutput::new(recipient, Pearl::from_pearl(10))],
         )
         .unwrap();
 
-        AuthorizedTransaction::Spend(Box::new(kernel::transaction::AuthorizedSpendTransaction {
+        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
             spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
         }))
@@ -1331,9 +1331,9 @@ fn explorer_index_rebuilds_after_deep_reorg_to_longer_branch() {
 fn block_index_extends_and_rebuilds_after_reorg() {
     let database = test_database("block-index-reorg");
 
-    let mut ledger = kernel::genesis::genesis_ledger().expect("genesis ledger");
+    let mut ledger = bellycoin::genesis::genesis_ledger().expect("genesis ledger");
 
-    let miner = Address([0x81; kernel::crypto::ADDRESS_SIZE]);
+    let miner = Address([0x81; bellycoin::crypto::ADDRESS_SIZE]);
 
     let target_bits = ledger
         .chain

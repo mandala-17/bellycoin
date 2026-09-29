@@ -51,7 +51,7 @@ mod tests {
             .unwrap()
             .as_nanos();
         let directory = std::env::temp_dir().join(format!(
-            "kernel-private-wallet-{}-{unique}",
+            "bellycoin-private-wallet-{}-{unique}",
             std::process::id()
         ));
         let path = directory.join("wallet.json");

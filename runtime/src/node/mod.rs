@@ -214,7 +214,7 @@ pub fn run(args: Vec<String>) -> Result<(), String> {
         ),
         Some("rpc") => rpc::serve_rpc(
             args.get(1).map(String::as_str),
-            args.get(2).map_or("127.0.0.1:6666", String::as_str),
+            args.get(2).map_or("127.0.0.1:4444", String::as_str),
         ),
         Some("p2p-listen") => p2p::serve_p2p(
             args.get(1).map(String::as_str),

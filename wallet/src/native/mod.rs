@@ -33,7 +33,7 @@ impl LoadedWallet {
     }
 }
 #[cfg(feature = "mainnet")]
-const DEFAULT_RPC_ADDR: &str = "127.0.0.1:6666";
+const DEFAULT_RPC_ADDR: &str = "127.0.0.1:4444";
 
 #[derive(Deserialize)]
 struct NakamaResponse {
