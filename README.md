@@ -393,13 +393,13 @@ cargo build --release -p node
 Run the node binary from:
 
 ```bash
-./target/release/node
+./target/release/bellycoin
 ```
 
 During development you can also use:
 
 ```bash
-cargo run -p node
+cargo run -p bellycoin
 ```
 
 Node configuration and available command-line options may evolve while Bellycoin is under development.
@@ -407,13 +407,13 @@ Node configuration and available command-line options may evolve while Bellycoin
 Check available options with:
 
 ```bash
-cargo run -p node -- --help
+cargo run -p bellycoin -- --help
 ```
 
 or:
 
 ```bash
-./target/release/node --help
+./target/release/bellycoin --help
 ```
 
 ---
