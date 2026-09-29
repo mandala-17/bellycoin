@@ -312,7 +312,7 @@ pub(super) fn serve_header_requests(
                 .block(&height)
                 .ok_or("canonical block is missing")?;
 
-            extension.push(kernel::consensus::HeaderAtHeight::new(
+            extension.push(bellycoin::consensus::HeaderAtHeight::new(
                 height,
                 block.header.clone(),
             ));

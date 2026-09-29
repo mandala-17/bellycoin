@@ -26,12 +26,12 @@ pub(super) fn resolve_miner(ledger: &Ledger, value: &str) -> Result<Address, Str
     if let Ok(address) = address_from_string(value) {
         return Ok(address);
     }
-    let name = kernel::ledger::nakama::NakamaName::new(value)
+    let name = bellycoin::ledger::nakama::NakamaName::new(value)
         .map_err(|error| format!("invalid miner name: {error:?}"))?;
     let public_key = ledger
         .state()
         .nakama
         .resolve(&name)
         .ok_or_else(|| format!("miner name `{value}` is not registered on this chain"))?;
-    Ok(kernel::crypto::address_from_public_key(public_key))
+    Ok(bellycoin::crypto::address_from_public_key(public_key))
 }

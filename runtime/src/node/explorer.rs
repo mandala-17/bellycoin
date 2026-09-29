@@ -66,14 +66,14 @@ pub(super) fn nakama_response(
         .iter()
         .map(|(id, coin)| (*id, coin.amount, reserved.contains(id)))
         .collect::<Vec<_>>();
-    let utxo_snapshot_bytes = kernel::crypto::canonical_bytes(&(address, utxo_snapshot_entries))
+    let utxo_snapshot_bytes = bellycoin::crypto::canonical_bytes(&(address, utxo_snapshot_entries))
         .map_err(|error| format!("encode nakama UTXO snapshot: {error}"))?;
-    let utxo_snapshot = kernel::crypto::domain_hash(
-        kernel::crypto::HashDomain::NakamaState,
+    let utxo_snapshot = bellycoin::crypto::domain_hash(
+        bellycoin::crypto::HashDomain::NakamaState,
         &utxo_snapshot_bytes,
     );
     Ok(serde_json::json!({
-        "address": kernel::crypto::address_to_string(&address),
+        "address": bellycoin::crypto::address_to_string(&address),
         "utxo_snapshot": hex::encode(utxo_snapshot.0),
         "tip_height": ledger.tip_height().map_or(0, |height| height.0),
         "next_height": next_height,
@@ -115,7 +115,7 @@ pub(super) fn balance_response(
         .checked_sub(reserved)
         .ok_or("reserved nakama balance exceeds total")?;
     Ok(serde_json::json!({
-        "address": kernel::crypto::address_to_string(&address),
+        "address": bellycoin::crypto::address_to_string(&address),
         "tip_height": ledger.tip_height().map_or(0, |height| height.0),
         "total": total.as_pearl(),
         "available": available.as_pearl(),
@@ -210,7 +210,7 @@ pub(super) fn explorer_address_response(
     let next_cursor = page.next_cursor.map(hex::encode);
 
     Ok(serde_json::json!({
-        "address": kernel::crypto::address_to_string(&address),
+        "address": bellycoin::crypto::address_to_string(&address),
         "tip_height": ledger.tip_height().map_or(0, |height| height.0),
         "balance": {
             "total": total.as_pearl(),
@@ -327,7 +327,7 @@ pub(super) fn spend_transaction_response(
         "type": if transaction.registration.is_some() { "name_registration" } else { "coin" },
         "registered_name": transaction.registration.as_ref().map(|registration| registration.name.as_str()),
         "message": intent.message.as_deref(),
-        "signer": kernel::crypto::address_to_string(&intent.sender),
+        "signer": bellycoin::crypto::address_to_string(&intent.sender),
         "inputs": intent.inputs.iter().map(|input| input.utxo.to_string()).collect::<Vec<_>>(),
         "outputs": public_outputs_response(&intent.outputs, miner, Some(intent.sender)),
         "miner_fee": miner_fee_from_outputs(&intent.outputs).unwrap_or(0),
@@ -344,7 +344,7 @@ pub(super) fn public_outputs_response(
         .map(|output| {
             let (address, output_type, role) = match output.output {
                 Nakama::Address(address) => (
-                    Some(kernel::crypto::address_to_string(&address)),
+                    Some(bellycoin::crypto::address_to_string(&address)),
                     "address",
                     if sender == Some(address) {
                         "change"
@@ -353,7 +353,7 @@ pub(super) fn public_outputs_response(
                     },
                 ),
                 Nakama::BountyHunter => (
-                    Some(kernel::crypto::address_to_string(&miner)),
+                    Some(bellycoin::crypto::address_to_string(&miner)),
                     "miner",
                     "miner_fee",
                 ),
@@ -459,7 +459,7 @@ pub(super) fn block_response(_ledger: &Ledger, block: &Block) -> Result<serde_js
         "transactions": block.transaction_count(),
         "hash": hash,
         "transaction_details": transaction_details,
-        "miner": kernel::crypto::address_to_string(&block.miner_address()),
+        "miner": bellycoin::crypto::address_to_string(&block.miner_address()),
         "subsidy": gross_subsidy.as_pearl(),
         "miner_emission": gross_subsidy.as_pearl(),
     }))

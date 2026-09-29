@@ -8,12 +8,12 @@ repository.workspace = true
 publish = false
 
 [[bin]]
-name = "node"
+name = "bellycoin"
 path = "src/main.rs"
 
 [features]
 default = ["mainnet"]
-mainnet = ["kernel/mainnet", "wallet/mainnet"]
+mainnet = ["bellycoin/mainnet", "wallet/mainnet"]
 
 [dependencies]
 borsh.workspace = true
@@ -23,5 +23,5 @@ serde.workspace = true
 igd-next.workspace = true
 getrandom.workspace = true
 redb.workspace = true
-kernel.workspace = true
+bellycoin.workspace = true
 wallet = { path = "../wallet", default-features = false }

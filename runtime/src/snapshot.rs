@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use kernel::{
+use bellycoin::{
     blockchain::Block,
     common::Height,
     crypto::{BlockHash, canonical_bytes, canonical_decode, hash_bytes},
@@ -146,12 +146,12 @@ fn load_bytes(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kernel::{consensus::apply_genesis, genesis::genesis_block};
+    use bellycoin::{consensus::apply_genesis, genesis::genesis_block};
     use std::fs;
 
     fn test_directory(label: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!(
-            "kernel-snapshot-{label}-{}-{}",
+            "bellycoin-snapshot-{label}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

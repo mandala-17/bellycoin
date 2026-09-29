@@ -12,7 +12,7 @@ pub(super) fn print_history(args: &[String]) -> Result<(), String> {
         .transpose()?;
     let bytes =
         Zeroizing::new(fs::read(path).map_err(|error| format!("failed to read {path}: {error}"))?);
-    let address = kernel::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
+    let address = bellycoin::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
     let history = fetch_address_history(rpc, &address, limit, before)?;
     let next_cursor = print_history_page(history);
 

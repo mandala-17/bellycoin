@@ -116,7 +116,7 @@ pub(super) fn synchronize_headers(
             ancestor_hash = Some(ancestor);
         }
 
-        let advanced = kernel::consensus::advance_header_validation_state_with_memory(
+        let advanced = bellycoin::consensus::advance_header_validation_state_with_memory(
             &current,
             &chunk.headers,
             pow_memory.get_or_insert_with(new_pow_memory),
@@ -147,11 +147,11 @@ pub(super) fn synchronize_headers(
     }
 }
 
-pub(super) fn map_peer_header_error(error: kernel::consensus::HeaderChainError) -> String {
+pub(super) fn map_peer_header_error(error: bellycoin::consensus::HeaderChainError) -> String {
     let invalid_pow = matches!(
         error,
-        kernel::consensus::HeaderChainError::InvalidHeaderChain(
-            kernel::consensus::ForkChoiceError::InvalidProofOfWork(_)
+        bellycoin::consensus::HeaderChainError::InvalidHeaderChain(
+            bellycoin::consensus::ForkChoiceError::InvalidProofOfWork(_)
         )
     );
     if invalid_pow {
@@ -351,7 +351,7 @@ pub(super) fn ledger_header_state_at_height(
     ledger: &Ledger,
     checkpoints: &[HeaderStateCheckpoint],
     target_height: Height,
-) -> Result<kernel::consensus::HeaderValidationState, String> {
+) -> Result<bellycoin::consensus::HeaderValidationState, String> {
     let target_block = ledger
         .chain
         .block(&target_height)
@@ -393,7 +393,7 @@ pub(super) fn ledger_header_state_at_height(
             .block(&height)
             .ok_or("canonical block is missing after checkpoint")?;
 
-        let block_work = kernel::consensus::block_work(block.target_bits()).ok_or_else(|| {
+        let block_work = bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
             format!(
                 "invalid target bits {:08x} at height {}",
                 block.target_bits(),
@@ -419,15 +419,15 @@ pub(super) fn ledger_header_state_at_height(
         .block(&difficulty_anchor_height)
         .ok_or("difficulty anchor is missing from canonical chain")?;
 
-    let difficulty_anchor = kernel::consensus::HeaderAtHeight::new(
+    let difficulty_anchor = bellycoin::consensus::HeaderAtHeight::new(
         difficulty_anchor_height,
         difficulty_anchor_block.header.clone(),
     );
 
     let mut recent_headers = Vec::new();
 
-    if kernel::consensus::RECENT_HEADER_WINDOW > 0 {
-        let window = u64::try_from(kernel::consensus::RECENT_HEADER_WINDOW).unwrap_or(u64::MAX);
+    if bellycoin::consensus::RECENT_HEADER_WINDOW > 0 {
+        let window = u64::try_from(bellycoin::consensus::RECENT_HEADER_WINDOW).unwrap_or(u64::MAX);
 
         let start = target_height.0.saturating_add(1).saturating_sub(window);
 
@@ -441,7 +441,7 @@ pub(super) fn ledger_header_state_at_height(
                 .block(&current)
                 .ok_or("recent canonical header is missing")?;
 
-            recent_headers.push(kernel::consensus::HeaderAtHeight::new(
+            recent_headers.push(bellycoin::consensus::HeaderAtHeight::new(
                 current,
                 block.header.clone(),
             ));
@@ -456,7 +456,7 @@ pub(super) fn ledger_header_state_at_height(
         }
     }
 
-    Ok(kernel::consensus::HeaderValidationState {
+    Ok(bellycoin::consensus::HeaderValidationState {
         height: target_height,
         header: target_block.header.clone(),
         cumulative_work,

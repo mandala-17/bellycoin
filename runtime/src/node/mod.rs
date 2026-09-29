@@ -18,7 +18,7 @@ use crate::sync::{
     decode_header_chain_chunk,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-use kernel::{
+use bellycoin::{
     blockchain::{Block, Emission, MAX_BLOCK_SIZE, block_bytes, decode_block},
     common::{Height, Nakama, Nonce},
     consensus::{
@@ -48,7 +48,7 @@ const API_DOCS_HTML: &[u8] = br#"<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>kernel RPC API</title>
+  <title>bellycoin RPC API</title>
 </head>
 <body>
   <script id="api-reference" data-url="/openapi.json"></script>
@@ -101,7 +101,7 @@ const DEFAULT_NAT_LEASE: Duration = Duration::from_secs(3_600);
 struct HeaderSyncResult {
     ancestor_height: Height,
     ancestor_hash: BlockHash,
-    headers: Vec<kernel::consensus::HeaderAtHeight>,
+    headers: Vec<bellycoin::consensus::HeaderAtHeight>,
     peer_work: Work,
     peer_weight: u64,
     preferred: bool,
@@ -253,7 +253,7 @@ fn run_automatic(args: &[String]) -> Result<(), String> {
     if let (Some(value), Some(address)) = (config.miner.as_deref(), miner) {
         println!(
             "miner: {value} -> {}",
-            kernel::crypto::address_to_string(&address)
+            bellycoin::crypto::address_to_string(&address)
         );
     }
     config::configure_public_address(&config)?;

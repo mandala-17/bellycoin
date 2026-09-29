@@ -102,7 +102,7 @@ pub(super) fn select_block_transactions(
         let mut candidate = selected.clone();
         candidate.push(transaction.clone());
         let block = candidate_block(ledger, miner, candidate.clone())?;
-        if block.block_weight() as usize > kernel::blockchain::MAX_BLOCK_SIZE {
+        if block.block_weight() as usize > bellycoin::blockchain::MAX_BLOCK_SIZE {
             break;
         }
         selected = candidate;

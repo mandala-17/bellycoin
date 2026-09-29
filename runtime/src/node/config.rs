@@ -125,8 +125,8 @@ pub(super) fn print_network_info() -> Result<(), String> {
         hex::encode(chain_spec_hash().map_err(|error| error.to_string())?.0)
     );
     println!("p2p_protocol: {P2P_PROTOCOL_VERSION}");
-    println!("pow: {}", kernel::consensus::POW_ALGORITHM);
-    println!("difficulty: {}", kernel::consensus::DIFFICULTY_ALGORITHM);
+    println!("pow: {}", bellycoin::consensus::POW_ALGORITHM);
+    println!("difficulty: {}", bellycoin::consensus::DIFFICULTY_ALGORITHM);
     Ok(())
 }
 

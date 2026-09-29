@@ -41,6 +41,17 @@ name = "base64ct"
 version = "1.8.3"
 
 [[package]]
+name = "bellycoin"
+version = "0.1.0"
+dependencies = [
+ "borsh",
+ "common",
+ "crypto",
+ "serde",
+ "static_assertions",
+]
+
+[[package]]
 name = "bip39"
 version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -479,17 +490,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kernel"
-version = "0.1.0"
-dependencies = [
- "borsh",
- "common",
- "crypto",
- "serde",
- "static_assertions",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.189"
 
@@ -525,11 +525,11 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 name = "node"
 version = "0.1.0"
 dependencies = [
+ "bellycoin",
  "borsh",
  "getrandom 0.4.3",
  "hex",
  "igd-next",
- "kernel",
  "redb",
  "serde",
  "serde_json",
@@ -851,10 +851,10 @@ version = "0.9.5"
 name = "wallet"
 version = "0.1.0"
 dependencies = [
+ "bellycoin",
  "bip39",
  "getrandom 0.4.3",
  "hex",
- "kernel",
  "serde",
  "serde_json",
  "zeroize 1.9.0",

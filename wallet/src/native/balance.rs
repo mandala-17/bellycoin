@@ -5,7 +5,7 @@ pub(super) fn print_balance(args: &[String]) -> Result<(), String> {
     let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
     let bytes =
         Zeroizing::new(fs::read(path).map_err(|error| format!("failed to read {path}: {error}"))?);
-    let address = kernel::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
+    let address = bellycoin::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
     let balance: BalanceResponse = http_get_json(rpc, &format!("/balance/{address}"))?;
     let supply: NodeSupplyResponse = http_get_json(rpc, "/status")?;
     let names = rpc::fetch_registered_names(rpc, &address)?;

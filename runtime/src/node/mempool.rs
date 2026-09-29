@@ -75,7 +75,7 @@ pub(super) fn reconcile_mempool(
             .tip_height()
             .map_or(0, |height| height.0.saturating_add(1)),
     );
-    let Ok(chain) = kernel::genesis::chain_context() else {
+    let Ok(chain) = bellycoin::genesis::chain_context() else {
         return Vec::new();
     };
     let mut state = ledger.state().clone();
@@ -94,7 +94,7 @@ pub(super) fn reconcile_mempool(
         let Ok(encoded) = canonical_bytes(&transaction) else {
             continue;
         };
-        if encoded.len() > kernel::blockchain::MAX_BLOCK_SIZE {
+        if encoded.len() > bellycoin::blockchain::MAX_BLOCK_SIZE {
             continue;
         }
         if !meets_minimum_relay_fee(&transaction, encoded.len()) {
@@ -134,11 +134,11 @@ pub(super) fn validate_mempool(
             .tip_height()
             .map_or(0, |height| height.0.saturating_add(1)),
     );
-    let chain = kernel::genesis::chain_context().map_err(|error| error.to_string())?;
+    let chain = bellycoin::genesis::chain_context().map_err(|error| error.to_string())?;
     let mut state = ledger.state().clone();
     for transaction in transactions {
         let encoded = canonical_bytes(transaction).map_err(|error| error.to_string())?;
-        if encoded.len() > kernel::blockchain::MAX_BLOCK_SIZE {
+        if encoded.len() > bellycoin::blockchain::MAX_BLOCK_SIZE {
             return Err("transaction cannot fit in a block".into());
         }
         let required_fee = minimum_relay_fee(encoded.len())?;

@@ -1,4 +1,4 @@
-use kernel::{
+use bellycoin::{
     blockchain::Block,
     common::Nonce,
     consensus::{ConsensusError, PoWTarget, calculate_work_with_memory},

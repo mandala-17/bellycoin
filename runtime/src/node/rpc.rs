@@ -141,7 +141,7 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
         }
         route if route.starts_with("/name/") => {
             let raw = route.trim_start_matches("/name/");
-            let name = kernel::ledger::nakama::NakamaName::new(raw)
+            let name = bellycoin::ledger::nakama::NakamaName::new(raw)
                 .map_err(|error| format!("invalid name: {error:?}"))?;
             let key = ledger
                 .state()
@@ -150,7 +150,7 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
                 .ok_or("name was not found")?;
             serde_json::json!({
                 "name": name.as_str(),
-                "address": kernel::crypto::address_to_string(&kernel::crypto::address_from_public_key(key)),
+                "address": bellycoin::crypto::address_to_string(&bellycoin::crypto::address_from_public_key(key)),
                 "public_key": hex::encode(&key.bytes),
                 "signature_scheme": key.scheme().as_str(),
             })

@@ -85,7 +85,7 @@ fn interactive_history() -> Result<(), String> {
     let limit = parse_history_limit(&limit_text)?;
     let bytes =
         Zeroizing::new(fs::read(&path).map_err(|error| format!("failed to read {path}: {error}"))?);
-    let address = kernel::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
+    let address = bellycoin::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
 
     let mut before: Option<String> = None;
     let mut previous = Vec::<Option<String>>::new();
@@ -213,7 +213,7 @@ pub(super) fn create_wallet(args: &[String]) -> Result<(), String> {
     let address = wallet.address;
     write_nakama_wallet(path, &wallet)?;
     println!("signature_nakama: {nakama}");
-    println!("address: {}", kernel::crypto::address_to_string(&address));
+    println!("address: {}", bellycoin::crypto::address_to_string(&address));
     println!("mnemonic: {}", mnemonic.as_str());
     println!("wallet: {path}");
     Ok(())
@@ -228,7 +228,7 @@ pub(super) fn restore_wallet(args: &[String]) -> Result<(), String> {
     let address = wallet.address;
     write_nakama_wallet(path, &wallet)?;
     println!("signature_nakama: {nakama}");
-    println!("address: {}", kernel::crypto::address_to_string(&address));
+    println!("address: {}", bellycoin::crypto::address_to_string(&address));
     println!("wallet: {path}");
     Ok(())
 }
@@ -248,7 +248,7 @@ pub(super) fn print_address(args: &[String]) -> Result<(), String> {
     let bytes =
         Zeroizing::new(fs::read(path).map_err(|error| format!("failed to read {path}: {error}"))?);
     let address = wallet_address_from_file_bytes(&bytes)?;
-    let address = kernel::crypto::address_to_string(&address);
+    let address = bellycoin::crypto::address_to_string(&address);
     let names = option(args, "--rpc")
         .map(|rpc| rpc::fetch_registered_names(rpc, &address))
         .transpose()?;

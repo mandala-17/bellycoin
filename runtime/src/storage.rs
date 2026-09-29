@@ -40,7 +40,7 @@ const EMPTY_INDEX_VALUE: &[u8] = &[];
 
 #[derive(Debug, Clone, Copy)]
 pub struct StoredAddressActivity {
-    pub address: [u8; kernel::crypto::ADDRESS_SIZE],
+    pub address: [u8; bellycoin::crypto::ADDRESS_SIZE],
     pub transaction_index: Option<u64>,
 }
 
@@ -63,7 +63,7 @@ pub struct CanonicalIndexBlock {
 
 pub fn read_address_activities_page(
     directory: &Path,
-    address: [u8; kernel::crypto::ADDRESS_SIZE],
+    address: [u8; bellycoin::crypto::ADDRESS_SIZE],
     before: Option<[u8; ADDRESS_ACTIVITY_CURSOR_SIZE]>,
     limit: usize,
 ) -> Result<AddressActivityPage, String> {
@@ -81,7 +81,7 @@ pub fn read_address_activities_page(
         .open_table(ADDRESS_ACTIVITY_INDEX)
         .map_err(|error| format!("open address activity index table: {error}"))?;
 
-    let key_size = kernel::crypto::ADDRESS_SIZE + ADDRESS_ACTIVITY_CURSOR_SIZE;
+    let key_size = bellycoin::crypto::ADDRESS_SIZE + ADDRESS_ACTIVITY_CURSOR_SIZE;
 
     let mut start = Vec::with_capacity(key_size);
     start.extend_from_slice(&address);
@@ -100,7 +100,7 @@ pub fn read_address_activities_page(
         }
     }
 
-    let height_start = kernel::crypto::ADDRESS_SIZE;
+    let height_start = bellycoin::crypto::ADDRESS_SIZE;
     let height_end = height_start + 8;
     let kind_index = height_end;
     let transaction_start = kind_index + 1;
@@ -122,11 +122,11 @@ pub fn read_address_activities_page(
             return Err("stored address activity key has invalid length".into());
         }
 
-        if key[..kernel::crypto::ADDRESS_SIZE] != address {
+        if key[..bellycoin::crypto::ADDRESS_SIZE] != address {
             return Err("stored address activity key has invalid address prefix".into());
         }
 
-        let cursor: [u8; ADDRESS_ACTIVITY_CURSOR_SIZE] = key[kernel::crypto::ADDRESS_SIZE..]
+        let cursor: [u8; ADDRESS_ACTIVITY_CURSOR_SIZE] = key[bellycoin::crypto::ADDRESS_SIZE..]
             .try_into()
             .map_err(|_| "stored address activity cursor is invalid")?;
 
@@ -184,11 +184,11 @@ pub fn read_address_activities_page(
 }
 
 fn encode_address_activity_key(
-    address: [u8; kernel::crypto::ADDRESS_SIZE],
+    address: [u8; bellycoin::crypto::ADDRESS_SIZE],
     height: u64,
     transaction_index: Option<u64>,
 ) -> Vec<u8> {
-    let mut key = Vec::with_capacity(kernel::crypto::ADDRESS_SIZE + 8 + 1 + 8);
+    let mut key = Vec::with_capacity(bellycoin::crypto::ADDRESS_SIZE + 8 + 1 + 8);
 
     key.extend_from_slice(&address);
     key.extend_from_slice(&height.to_be_bytes());
@@ -318,7 +318,7 @@ pub fn read_transaction_location(
 #[cfg(test)]
 pub fn read_address_activities(
     directory: &Path,
-    address: [u8; kernel::crypto::ADDRESS_SIZE],
+    address: [u8; bellycoin::crypto::ADDRESS_SIZE],
 ) -> Result<Vec<(u64, Option<u64>)>, String> {
     let database = open(directory)?;
 
@@ -332,7 +332,7 @@ pub fn read_address_activities(
 
     const ACTIVITY_SUFFIX_SIZE: usize = 8 + 1 + 8;
 
-    let key_size = kernel::crypto::ADDRESS_SIZE + ACTIVITY_SUFFIX_SIZE;
+    let key_size = bellycoin::crypto::ADDRESS_SIZE + ACTIVITY_SUFFIX_SIZE;
 
     let mut start = Vec::with_capacity(key_size);
     start.extend_from_slice(&address);
@@ -342,7 +342,7 @@ pub fn read_address_activities(
     end.extend_from_slice(&address);
     end.resize(key_size, 0xff);
 
-    let height_start = kernel::crypto::ADDRESS_SIZE;
+    let height_start = bellycoin::crypto::ADDRESS_SIZE;
     let height_end = height_start + 8;
     let kind_index = height_end;
     let transaction_start = kind_index + 1;
@@ -363,7 +363,7 @@ pub fn read_address_activities(
             return Err("stored address activity key has invalid length".into());
         }
 
-        if key[..kernel::crypto::ADDRESS_SIZE] != address {
+        if key[..bellycoin::crypto::ADDRESS_SIZE] != address {
             return Err("stored address activity key has invalid address prefix".into());
         }
 
@@ -559,7 +559,7 @@ fn initialize(database: &Database) -> Result<(), String> {
             }
         }
 
-        let expected_genesis = kernel::genesis::EXPECTED_GENESIS_HASH.0;
+        let expected_genesis = bellycoin::genesis::EXPECTED_GENESIS_HASH.0;
 
         let stored_genesis = metadata
             .get("genesis_hash")
@@ -580,7 +580,7 @@ fn initialize(database: &Database) -> Result<(), String> {
             }
         }
 
-        let expected_chain_spec = kernel::genesis::chain_spec_hash()
+        let expected_chain_spec = bellycoin::genesis::chain_spec_hash()
             .map_err(|error| format!("calculate chain specification: {error}"))?
             .0;
 

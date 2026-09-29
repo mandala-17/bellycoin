@@ -79,7 +79,7 @@ pub(super) fn load_or_initialize_uncached(path: &Path) -> Result<Ledger, String>
     fs::create_dir_all(path).map_err(|error| format!("create database: {error}"))?;
     let block = genesis_block().map_err(|error| error.to_string())?;
     let mut ledger = Ledger::new();
-    kernel::consensus::apply_genesis(&mut ledger, block.clone(), EXPECTED_GENESIS_HASH)
+    bellycoin::consensus::apply_genesis(&mut ledger, block.clone(), EXPECTED_GENESIS_HASH)
         .map_err(|error| error.to_string())?;
     persist_block_and_mempool(path, &block, &[])?;
     Ok(ledger)
@@ -91,23 +91,23 @@ const HEADER_STATE_CHECKPOINT_INTERVAL: u64 = 256;
 pub(super) struct HeaderStateCheckpoint {
     pub(super) height: Height,
     pub(super) hash: [u8; 32],
-    pub(super) cumulative_work: kernel::consensus::Work,
+    pub(super) cumulative_work: bellycoin::consensus::Work,
     pub(super) cumulative_weight: u64,
 }
 
 pub(super) type HeaderSnapshot = (
     Arc<Ledger>,
     Arc<Vec<HeaderStateCheckpoint>>,
-    kernel::consensus::Work,
+    bellycoin::consensus::Work,
     u64,
 );
 
 pub(super) fn build_header_state_checkpoints(
     ledger: &Ledger,
-) -> Result<(Vec<HeaderStateCheckpoint>, kernel::consensus::Work, u64), String> {
+) -> Result<(Vec<HeaderStateCheckpoint>, bellycoin::consensus::Work, u64), String> {
     let mut checkpoints = Vec::new();
 
-    let mut cumulative_work = kernel::consensus::Work::ZERO;
+    let mut cumulative_work = bellycoin::consensus::Work::ZERO;
     let mut cumulative_weight = 0_u64;
 
     for block in ledger.chain.blocks() {
@@ -130,7 +130,7 @@ pub(super) fn build_header_state_checkpoints(
             continue;
         }
 
-        let block_work = kernel::consensus::block_work(block.target_bits()).ok_or_else(|| {
+        let block_work = bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
             format!(
                 "invalid target bits {:08x} at height {}",
                 block.target_bits(),
@@ -162,7 +162,7 @@ pub(super) fn build_header_state_checkpoints(
 fn updated_header_state_checkpoints(
     path: &Path,
     ledger: &Ledger,
-) -> Result<(Vec<HeaderStateCheckpoint>, kernel::consensus::Work, u64), String> {
+) -> Result<(Vec<HeaderStateCheckpoint>, bellycoin::consensus::Work, u64), String> {
     let previous = {
         let cache = ledger_cache()
             .read()
@@ -211,7 +211,7 @@ fn updated_header_state_checkpoints(
             .block(&height)
             .ok_or("canonical block is missing while updating checkpoints")?;
 
-        let block_work = kernel::consensus::block_work(block.target_bits()).ok_or_else(|| {
+        let block_work = bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
             format!(
                 "invalid target bits {:08x} at height {}",
                 block.target_bits(),
@@ -362,7 +362,7 @@ pub(super) fn load_existing(path: &Path) -> Result<Ledger, String> {
         Err(error) => eprintln!("node: snapshot ignored, using full replay: {error}"),
     }
     let mut ledger = Ledger::new();
-    kernel::consensus::apply_genesis(&mut ledger, genesis.clone(), EXPECTED_GENESIS_HASH)
+    bellycoin::consensus::apply_genesis(&mut ledger, genesis.clone(), EXPECTED_GENESIS_HASH)
         .map_err(|error| format!("invalid stored genesis: {error}"))?;
     replay_stored_blocks(path, ledger, rest)
 }

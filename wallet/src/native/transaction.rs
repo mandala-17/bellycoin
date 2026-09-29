@@ -18,7 +18,7 @@ struct PublicKeyLookup {
 }
 
 fn registered_key_available(rpc: &str, wallet: &LoadedWallet) -> Result<bool, String> {
-    let address = kernel::crypto::address_to_string(&wallet.address());
+    let address = bellycoin::crypto::address_to_string(&wallet.address());
     let lookup: PublicKeyLookup = http_get_json(rpc, &format!("/public-key/{address}"))?;
     if lookup.address != address {
         return Err("node returned a different public-key address".into());
@@ -49,7 +49,7 @@ pub(super) fn recipient_address(rpc: &str, value: &str) -> Result<Address, Strin
     if let Ok(address) = address_from_string(value) {
         return Ok(address);
     }
-    let name = kernel::ledger::nakama::NakamaName::new(value)
+    let name = bellycoin::ledger::nakama::NakamaName::new(value)
         .map_err(|error| format!("invalid recipient name: {error:?}"))?;
     let lookup: NameLookup = http_get_json(rpc, &format!("/name/{}", name.as_str()))?;
     if lookup.name != name.as_str() {
@@ -59,7 +59,7 @@ pub(super) fn recipient_address(rpc: &str, value: &str) -> Result<Address, Strin
         .signature_scheme
         .parse::<Signature>()
         .map_err(|_| "node returned an invalid name signature scheme")?;
-    let key = kernel::crypto::PublicKey {
+    let key = bellycoin::crypto::PublicKey {
         nakama: scheme,
         bytes: hex::decode(&lookup.public_key)
             .map_err(|_| "node returned an invalid name public key")?,
@@ -69,7 +69,7 @@ pub(super) fn recipient_address(rpc: &str, value: &str) -> Result<Address, Strin
     }
     let address = address_from_string(&lookup.address)
         .map_err(|error| format!("node returned invalid name address: {error}"))?;
-    if kernel::crypto::address_from_public_key(&key) != address {
+    if bellycoin::crypto::address_from_public_key(&key) != address {
         return Err("node returned a name address that does not match its public key".into());
     }
     Ok(address)
@@ -78,7 +78,7 @@ pub(super) fn recipient_address(rpc: &str, value: &str) -> Result<Address, Strin
 pub(super) fn register_name(args: &[String]) -> Result<(), String> {
     reject_manual_fee(args)?;
     let raw = option(args, "--name").ok_or("missing --name")?;
-    let name = kernel::ledger::nakama::NakamaName::new(raw)
+    let name = bellycoin::ledger::nakama::NakamaName::new(raw)
         .map_err(|error| format!("invalid name: {error:?}"))?;
     let wallet = load_wallet(option(args, "--wallet").unwrap_or(DEFAULT_WALLET_PATH))?;
     let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
@@ -255,7 +255,7 @@ pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
 }
 
 fn nakama_input_candidates(rpc: &str, wallet: &LoadedWallet) -> Result<Vec<NakamaUtxo>, String> {
-    let address = kernel::crypto::address_to_string(&wallet.address());
+    let address = bellycoin::crypto::address_to_string(&wallet.address());
     let response = fetch_nakama(rpc, &address)?;
     let mut candidates = response
         .utxos
@@ -337,9 +337,9 @@ pub(super) fn automatic_fee_transaction(
 pub(super) fn submit_or_print_transaction(
     args: &[String],
     transaction: &Transaction,
-    public_key: &kernel::crypto::PublicKey,
+    public_key: &bellycoin::crypto::PublicKey,
 ) -> Result<(), String> {
-    let chain = kernel::genesis::chain_context().map_err(|error| error.to_string())?;
+    let chain = bellycoin::genesis::chain_context().map_err(|error| error.to_string())?;
 
     let authorization_valid = transaction
         .verify_authorization_with_key(chain, public_key)

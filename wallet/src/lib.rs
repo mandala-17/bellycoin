@@ -1,5 +1,5 @@
 use bip39::{Language, Mnemonic};
-use kernel::{
+use bellycoin::{
     crypto::{
         Address, PublicKey, Signature, SigningSeed, address_from_public_key, address_from_string,
         address_to_string, hash_bytes,
@@ -183,11 +183,11 @@ fn tagged_wallet_hash(tag: &[u8], bytes: &[u8]) -> Zeroizing<[u8; 32]> {
 
 impl NakamaWallet {
     pub fn sign_name_registration(&self, name: NakamaName) -> Result<RegisterNakama, String> {
-        let chain = kernel::genesis::chain_context().map_err(|error| error.to_string())?;
+        let chain = bellycoin::genesis::chain_context().map_err(|error| error.to_string())?;
         let mut registration = RegisterNakama {
             name,
             public_key: self.public_key.clone(),
-            signature: kernel::crypto::NakamaSignature {
+            signature: bellycoin::crypto::NakamaSignature {
                 nakama: self.public_key.scheme(),
                 bytes: Vec::new(),
             },
@@ -212,7 +212,7 @@ impl NakamaWallet {
         intent: SpendIntent,
         registered: bool,
     ) -> Result<Transaction, String> {
-        let chain = kernel::genesis::chain_context().map_err(|error| error.to_string())?;
+        let chain = bellycoin::genesis::chain_context().map_err(|error| error.to_string())?;
         let commitment = intent
             .authorization_commitment(chain)
             .map_err(|error| error.to_string())?;
