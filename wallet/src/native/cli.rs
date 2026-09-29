@@ -128,7 +128,7 @@ fn interactive_spend() -> Result<(), String> {
     let rpc = prompt_default("RPC", DEFAULT_RPC_ADDR)?;
     let recipient = prompt("Nakama address or name")?;
     super::transaction::recipient_address(&rpc, &recipient)?;
-    let amount = prompt("$blc amount")?;
+    let amount = prompt("BELLY amount")?;
     let message = prompt("Message (optional, public)")?;
     let mut args = vec![
         "--to".into(),
@@ -265,7 +265,7 @@ fn human_label(key: &str) -> String {
             "id" => "ID".to_string(),
             "tx" => "TX".to_string(),
             "utxo" => "UTXO".to_string(),
-            "$blc" => "$blc".to_string(),
+            "BELLY" => "BELLY".to_string(),
             other => {
                 let mut chars = other.chars();
                 match chars.next() {
