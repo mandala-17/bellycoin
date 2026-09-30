@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, error::Error as StdError, fmt};
 use common::ChainContext;
 use crypto::{Address, PublicKey, TransactionHash};
 
-use crate::ledger::nakama::{NakamaError, RegisterNakama};
+use crate::ledger::nakama::{NakamaError, RegisterNakama, nakama_name_burn};
 use crate::transaction::{Input, IntentError, Output, Pearl, SpendIntent, Transaction, UtxoId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,7 +70,13 @@ pub fn validate_transaction(
     }
 
     let intent = &transaction.intent;
-    validate_bellycoin_inputs(&intent.inputs, &intent.outputs, intent.sender, state)?;
+    let burn = transaction
+        .registration
+        .as_ref()
+        .map_or(Pearl::ZERO, |registration| {
+            nakama_name_burn(&registration.name)
+        });
+    validate_bellycoin_inputs(&intent.inputs, &intent.outputs, intent.sender, burn, state)?;
     if let Some(registration) = &transaction.registration {
         if &registration.public_key != public_key {
             return Err(TransactionConsensusError::InvalidRegistration(
@@ -100,6 +106,7 @@ fn validate_bellycoin_inputs(
     inputs: &[Input],
     outputs: &[Output],
     sender: Address,
+    burn: Pearl,
     state: &impl TransactionStateView,
 ) -> Result<(), TransactionConsensusError> {
     let mut unique = BTreeSet::new();
@@ -125,7 +132,11 @@ fn validate_bellycoin_inputs(
         sum.checked_add(output.amount)
             .ok_or(TransactionConsensusError::PearlOverflow)
     })?;
-    if input_total != output_total {
+    if input_total
+        != output_total
+            .checked_add(burn)
+            .ok_or(TransactionConsensusError::PearlOverflow)?
+    {
         return Err(TransactionConsensusError::ValueMismatch);
     }
     Ok(())
@@ -212,16 +223,16 @@ mod tests {
             Output::new(sender, Pearl::from_pearl(90)),
             Output::block_miner(Pearl::from_pearl(10)),
         ];
-        assert!(validate_bellycoin_inputs(&inputs, &outputs, sender, &state).is_ok());
+        assert!(validate_bellycoin_inputs(&inputs, &outputs, sender, Pearl::ZERO, &state).is_ok());
 
         let underfunded = [Output::new(sender, Pearl::from_pearl(99))];
         assert!(matches!(
-            validate_bellycoin_inputs(&inputs, &underfunded, sender, &state),
+            validate_bellycoin_inputs(&inputs, &underfunded, sender, Pearl::ZERO, &state),
             Err(TransactionConsensusError::ValueMismatch)
         ));
         let overfunded = [Output::new(sender, Pearl::from_pearl(101))];
         assert!(matches!(
-            validate_bellycoin_inputs(&inputs, &overfunded, sender, &state),
+            validate_bellycoin_inputs(&inputs, &overfunded, sender, Pearl::ZERO, &state),
             Err(TransactionConsensusError::ValueMismatch)
         ));
     }

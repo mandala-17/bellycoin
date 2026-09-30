@@ -158,10 +158,10 @@ pub(super) fn validate_mempool(
     Ok(())
 }
 
-pub(super) fn minimum_relay_fee(encoded_size: usize) -> Result<u64, String> {
-    u64::try_from(encoded_size)
+pub(super) fn minimum_relay_fee(encoded_size: usize) -> Result<u128, String> {
+    u128::try_from(encoded_size)
         .ok()
-        .and_then(|size| size.checked_mul(MIN_RELAY_FEE_PEARL_PER_BYTE))
+        .and_then(|size| size.checked_mul(u128::from(MIN_RELAY_FEE_PEARL_PER_BYTE)))
         .ok_or("minimum relay fee overflow".into())
 }
 
@@ -171,11 +171,11 @@ pub(super) fn meets_minimum_relay_fee(transaction: &Transaction, encoded_size: u
         .unwrap_or(false)
 }
 
-pub(super) fn transaction_miner_fee(transaction: &Transaction) -> Result<u64, String> {
+pub(super) fn transaction_miner_fee(transaction: &Transaction) -> Result<u128, String> {
     miner_fee_from_outputs(&transaction.intent.outputs)
 }
 
-pub(super) fn miner_fee_from_outputs(outputs: &[Output]) -> Result<u64, String> {
+pub(super) fn miner_fee_from_outputs(outputs: &[Output]) -> Result<u128, String> {
     let mut fees = outputs
         .iter()
         .filter(|output| output.output == Nakama::BountyHunter);
@@ -210,15 +210,20 @@ pub(super) fn read_mempool(path: &Path) -> Result<Vec<Transaction>, String> {
 
 pub(super) fn write_mempool(path: &Path, transactions: &[Transaction]) -> Result<(), String> {
     let encoded = encode_mempool(transactions)?;
+
     let length = encoded
         .iter()
         .try_fold(0_u64, |total, transaction| {
-            total.checked_add(transaction.len() as u64)
+            let size = u64::try_from(transaction.len()).map_err(|_| ())?;
+
+            total.checked_add(size).ok_or(())
         })
-        .ok_or("mempool size overflow")?;
+        .map_err(|_| "mempool size overflow")?;
+
     if length > MAX_STORED_MEMPOOL_SIZE {
         return Err("mempool exceeds persistence size limit".into());
     }
+
     crate::storage::replace_mempool(path, &encoded)
 }
 

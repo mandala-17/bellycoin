@@ -23,18 +23,18 @@ pub const MAX_SPEND_MESSAGE_BYTES: usize = 256;
     BorshSerialize,
     BorshDeserialize,
 )]
-pub struct Pearl(u64);
+pub struct Pearl(u128);
 
 impl Pearl {
     pub const ZERO: Self = Self(0);
     pub const ONE: Self = Self(1);
-    pub const PEARL_PER_BELLYCOIN: u64 = 10u64.pow(DECIMALS as u32);
+    pub const PEARL_PER_BELLYCOIN: u128 = 10u128.pow(DECIMALS as u32);
 
-    pub const fn from_pearl(pearl: u64) -> Self {
+    pub const fn from_pearl(pearl: u128) -> Self {
         Self(pearl)
     }
 
-    pub const fn as_pearl(self) -> u64 {
+    pub const fn as_pearl(self) -> u128 {
         self.0
     }
 

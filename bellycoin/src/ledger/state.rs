@@ -24,6 +24,7 @@ impl LedgerState {
 #[derive(BorshSerialize, BorshDeserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BellycoinRecord {
     pub total_mined: Pearl,
+    pub total_burned: Pearl,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
@@ -31,6 +32,7 @@ pub struct SpendRollbackJournal {
     pub(crate) consumed_pearls: Vec<(UtxoId, Bellycoin)>,
     pub(crate) created_pearl_ids: Vec<UtxoId>,
     pub(crate) mined: Pearl,
+    pub(crate) burned: Pearl,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Default, PartialEq, Eq)]

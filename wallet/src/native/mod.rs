@@ -19,7 +19,7 @@ use wallet::{
 use zeroize::{Zeroize, Zeroizing};
 
 const DEFAULT_WALLET_PATH: &str = "wallet.json";
-const AUTOMATIC_FEE_PEARL_PER_BYTE: u64 = 10;
+const AUTOMATIC_FEE_PEARL_PER_BYTE: u128 = 10;
 const MAX_FEE_CONVERGENCE_ROUNDS: usize = 8;
 const DEFAULT_HISTORY_LIMIT: usize = 50;
 const MAX_HISTORY_LIMIT: usize = 250;
@@ -47,8 +47,8 @@ struct NakamaResponse {
 
 #[derive(Deserialize)]
 struct BalanceResponse {
-    total: u64,
-    reserved: u64,
+    total: u128,
+    reserved: u128,
     utxo_count: usize,
 }
 
@@ -61,13 +61,13 @@ struct RegisteredNamesResponse {
 
 #[derive(Deserialize)]
 struct NodeStatusResponse {
-    total_mined: u64,
+    total_mined: u128,
 }
 
 #[derive(Deserialize)]
 struct NakamaUtxo {
     id: String,
-    amount: u64,
+    amount: u128,
     reserved: bool,
 }
 
@@ -89,7 +89,7 @@ struct AddressActivity {
     #[serde(rename = "type")]
     activity_type: String,
     direction: String,
-    amount: u64,
+    amount: u128,
     #[serde(default)]
     message: Option<String>,
     size_bytes: Option<usize>,

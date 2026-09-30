@@ -2,6 +2,7 @@ use crypto::Address;
 
 use crate::{
     consensus::ValidatedTransaction,
+    ledger::nakama::nakama_name_burn,
     ledger::{Bellycoin, LedgerState, SpendRollbackJournal, StateError, StateRollbackJournal},
     transaction::{SpendIntent, UtxoId},
 };
@@ -37,19 +38,27 @@ impl LedgerState {
         } else {
             None
         };
-        let spend =
-            match self.apply_onchain_spend(&transaction.intent, transaction.txid, block_miner) {
-                Ok(spend) => spend,
-                Err(error) => {
-                    if let Some(name) = &registered_name {
-                        self.nakama.remove(name);
-                    }
-                    if let Some(address) = registered_public_key {
-                        self.nakama.remove_public_key(address);
-                    }
-                    return Err(error);
+        let spend = match self.apply_onchain_spend(
+            &transaction.intent,
+            transaction.txid,
+            block_miner,
+            transaction
+                .registration
+                .as_ref()
+                .map(|registration| nakama_name_burn(&registration.name))
+                .unwrap_or_default(),
+        ) {
+            Ok(spend) => spend,
+            Err(error) => {
+                if let Some(name) = &registered_name {
+                    self.nakama.remove(name);
                 }
-            };
+                if let Some(address) = registered_public_key {
+                    self.nakama.remove_public_key(address);
+                }
+                return Err(error);
+            }
+        };
         Ok(StateRollbackJournal {
             spend: Some(spend),
             registered_name,
@@ -62,6 +71,7 @@ impl LedgerState {
         intent: &SpendIntent,
         txid: TransactionHash,
         block_miner: Address,
+        burn: crate::transaction::Pearl,
     ) -> Result<SpendRollbackJournal, StateError> {
         let mut journal = SpendRollbackJournal::default();
 
@@ -92,6 +102,13 @@ impl LedgerState {
 
                 journal.created_pearl_ids.push(id);
             }
+
+            self.bellycoin.total_burned = self
+                .bellycoin
+                .total_burned
+                .checked_add(burn)
+                .ok_or(StateError::AmountOverflow)?;
+            journal.burned = burn;
 
             Ok(())
         })();
@@ -124,6 +141,11 @@ impl LedgerState {
             .bellycoin
             .total_mined
             .checked_sub(journal.mined)
+            .ok_or(StateError::AmountOverflow)?;
+        self.bellycoin.total_burned = self
+            .bellycoin
+            .total_burned
+            .checked_sub(journal.burned)
             .ok_or(StateError::AmountOverflow)?;
 
         for id in journal.created_pearl_ids {

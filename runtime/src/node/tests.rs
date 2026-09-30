@@ -39,8 +39,10 @@ fn embedded_api_documentation_is_valid_and_references_every_rpc_route() {
 #[test]
 fn asset_transaction_projection_exposes_asset_and_action() {
     let chain = bellycoin::genesis::chain_context().unwrap();
-    let seed =
-        bellycoin::crypto::SigningSeed::new(bellycoin::crypto::Signature::MlDsa44, Box::new([0x51; 32]));
+    let seed = bellycoin::crypto::SigningSeed::new(
+        bellycoin::crypto::Signature::MlDsa44,
+        Box::new([0x51; 32]),
+    );
     let public_key = seed.public_key();
     let signer = bellycoin::crypto::address_from_public_key(&public_key);
     let asset_call = bellycoin::transaction::AssetIntent::new(
@@ -103,8 +105,10 @@ fn explorer_miner_fee_uses_block_miner_output() {
 
 #[test]
 fn nakama_projection_lists_asset_supply_and_creator_shares() {
-    let seed =
-        bellycoin::crypto::SigningSeed::new(bellycoin::crypto::Signature::MlDsa44, Box::new([0x61; 32]));
+    let seed = bellycoin::crypto::SigningSeed::new(
+        bellycoin::crypto::Signature::MlDsa44,
+        Box::new([0x61; 32]),
+    );
     let authority = bellycoin::crypto::address_from_public_key(&seed.public_key());
     let call = bellycoin::transaction::AssetIntent::new(
         bellycoin::transaction::AssetInstruction::Register {
@@ -132,7 +136,8 @@ fn nakama_projection_lists_asset_supply_and_creator_shares() {
     assert_eq!(assets[0]["shares"].as_array().unwrap().len(), 1);
     assert_eq!(assets[0]["shares"][0]["amount"], "4");
     assert!(
-        assets[0]["shares"][0]["share_id"].as_str().unwrap().len() == bellycoin::crypto::HASH_SIZE * 2
+        assets[0]["shares"][0]["share_id"].as_str().unwrap().len()
+            == bellycoin::crypto::HASH_SIZE * 2
     );
 }
 
@@ -340,11 +345,12 @@ fn explorer_activity_reports_net_transfer_for_sender_and_recipient() {
         ],
     )
     .unwrap();
-    let transaction =
-        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
+    let transaction = AuthorizedTransaction::Spend(Box::new(
+        bellycoin::transaction::AuthorizedSpendTransaction {
             spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
-        }));
+        },
+    ));
     let genesis = genesis_block().unwrap();
     let block = Block::from_protocol_transactions(
         Height(1),
@@ -453,7 +459,6 @@ fn sequential_header_metrics(ledger: &Ledger, target_height: Height) -> Work {
             .expect("synthetic target bits are valid");
 
         cumulative_work = cumulative_work.saturating_add(block_work);
-
     }
 
     cumulative_work
@@ -543,11 +548,12 @@ fn explorer_tx_index_finds_canonical_transaction() {
     )
     .unwrap();
 
-    let transaction =
-        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
+    let transaction = AuthorizedTransaction::Spend(Box::new(
+        bellycoin::transaction::AuthorizedSpendTransaction {
             spend: sender.sign_nakama_intent(intent).unwrap(),
             payment: None,
-        }));
+        },
+    ));
 
     let transaction_hash = transaction.id().expect("transaction ID");
 
@@ -684,10 +690,12 @@ fn explorer_index_extends_after_canonical_append() {
         )
         .unwrap();
 
-        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_nakama_intent(intent).unwrap(),
-            payment: None,
-        }))
+        AuthorizedTransaction::Spend(Box::new(
+            bellycoin::transaction::AuthorizedSpendTransaction {
+                spend: sender.sign_nakama_intent(intent).unwrap(),
+                payment: None,
+            },
+        ))
     };
 
     let transaction_one = make_transaction(0x42, 0x43, 0x44);
@@ -788,10 +796,12 @@ fn explorer_index_rebuilds_after_reorg_and_drops_orphan_transaction() {
         )
         .unwrap();
 
-        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_nakama_intent(intent).unwrap(),
-            payment: None,
-        }))
+        AuthorizedTransaction::Spend(Box::new(
+            bellycoin::transaction::AuthorizedSpendTransaction {
+                spend: sender.sign_nakama_intent(intent).unwrap(),
+                payment: None,
+            },
+        ))
     };
 
     let target_bits = ledger
@@ -901,10 +911,12 @@ fn explorer_address_index_rebuilds_after_reorg() {
         )
         .unwrap();
 
-        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_nakama_intent(intent).unwrap(),
-            payment: None,
-        }))
+        AuthorizedTransaction::Spend(Box::new(
+            bellycoin::transaction::AuthorizedSpendTransaction {
+                spend: sender.sign_nakama_intent(intent).unwrap(),
+                payment: None,
+            },
+        ))
     };
 
     let target_bits = ledger
@@ -1210,10 +1222,12 @@ fn explorer_index_rebuilds_after_deep_reorg_to_longer_branch() {
         )
         .unwrap();
 
-        AuthorizedTransaction::Spend(Box::new(bellycoin::transaction::AuthorizedSpendTransaction {
-            spend: sender.sign_nakama_intent(intent).unwrap(),
-            payment: None,
-        }))
+        AuthorizedTransaction::Spend(Box::new(
+            bellycoin::transaction::AuthorizedSpendTransaction {
+                spend: sender.sign_nakama_intent(intent).unwrap(),
+                payment: None,
+            },
+        ))
     };
 
     let target_bits = ledger

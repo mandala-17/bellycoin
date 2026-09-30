@@ -12,8 +12,16 @@ use crypto::{
     domain, verify,
 };
 
-pub const MIN_NAKAMA_NAME_LEN: usize = 3;
+pub const MIN_NAKAMA_NAME_LEN: usize = 1;
 pub const MAX_NAKAMA_NAME_LEN: usize = 32;
+
+/// Mandatory name registration burn, in the smallest BELLY unit.
+pub fn nakama_name_burn(name: &NakamaName) -> crate::transaction::Pearl {
+    let halvings = name.as_str().len().min(8) - 1;
+    crate::transaction::Pearl::from_pearl(
+        1_000_000 * crate::transaction::Pearl::PEARL_PER_BELLYCOIN >> halvings,
+    )
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum NakamaError {

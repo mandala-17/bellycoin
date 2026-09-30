@@ -221,7 +221,11 @@ impl TransactionStateView for LedgerState {
 
 impl LedgerState {
     pub(crate) fn application_state_root(&self) -> Result<StateRoot, LedgerError> {
-        if self.utxos.is_empty() && self.bellycoin.total_mined.is_zero() && self.nakama.is_empty() {
+        if self.utxos.is_empty()
+            && self.bellycoin.total_mined.is_zero()
+            && self.bellycoin.total_burned.is_zero()
+            && self.nakama.is_empty()
+        {
             return Ok(StateRoot::ZERO);
         }
 

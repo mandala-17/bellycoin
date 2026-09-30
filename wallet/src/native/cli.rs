@@ -213,7 +213,10 @@ pub(super) fn create_wallet(args: &[String]) -> Result<(), String> {
     let address = wallet.address;
     write_nakama_wallet(path, &wallet)?;
     println!("signature_nakama: {nakama}");
-    println!("address: {}", bellycoin::crypto::address_to_string(&address));
+    println!(
+        "address: {}",
+        bellycoin::crypto::address_to_string(&address)
+    );
     println!("mnemonic: {}", mnemonic.as_str());
     println!("wallet: {path}");
     Ok(())
@@ -228,7 +231,10 @@ pub(super) fn restore_wallet(args: &[String]) -> Result<(), String> {
     let address = wallet.address;
     write_nakama_wallet(path, &wallet)?;
     println!("signature_nakama: {nakama}");
-    println!("address: {}", bellycoin::crypto::address_to_string(&address));
+    println!(
+        "address: {}",
+        bellycoin::crypto::address_to_string(&address)
+    );
     println!("wallet: {path}");
     Ok(())
 }

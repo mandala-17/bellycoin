@@ -82,7 +82,7 @@ pub fn expected_difficulty_for_height<E>(
     ))
 }
 
-pub const BLOCK_EMISSION: u64 = 100_000_000_000;
+pub const BLOCK_EMISSION: u128 = 100_000_000_000;
 
 pub fn expected_emission_for_height(_height: Height) -> Pearl {
     Pearl::from_pearl(BLOCK_EMISSION)

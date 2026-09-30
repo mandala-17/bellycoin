@@ -1,4 +1,3 @@
-use bip39::{Language, Mnemonic};
 use bellycoin::{
     crypto::{
         Address, PublicKey, Signature, SigningSeed, address_from_public_key, address_from_string,
@@ -7,6 +6,7 @@ use bellycoin::{
     ledger::nakama::{NakamaName, RegisterNakama},
     transaction::{NakamaAuthorization, SpendIntent, Transaction},
 };
+use bip39::{Language, Mnemonic};
 
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};

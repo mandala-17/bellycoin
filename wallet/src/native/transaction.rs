@@ -83,9 +83,13 @@ pub(super) fn register_name(args: &[String]) -> Result<(), String> {
     let wallet = load_wallet(option(args, "--wallet").unwrap_or(DEFAULT_WALLET_PATH))?;
     let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
     let registration = wallet.0.sign_name_registration(name)?;
+    let burn = bellycoin::ledger::nakama::nakama_name_burn(&registration.name).as_pearl();
 
     let transaction = automatic_fee_transaction(|fee| {
-        let required = fee.checked_add(1).ok_or("registration fee overflow")?;
+        let required = burn
+            .checked_add(fee)
+            .and_then(|amount| amount.checked_add(1))
+            .ok_or("registration cost overflow")?;
         let (inputs, change) = select_nakama_inputs(rpc, &wallet, required)?;
         let mut outputs = vec![Output::new(wallet.address(), Pearl::from_pearl(change + 1))];
         if fee > 0 {
@@ -216,7 +220,7 @@ pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    let total = candidates.iter().try_fold(0_u64, |total, utxo| {
+    let total = candidates.iter().try_fold(0_u128, |total, utxo| {
         total
             .checked_add(utxo.amount)
             .ok_or_else(|| "consolidation input amount overflow".to_string())
@@ -274,11 +278,11 @@ fn nakama_input_candidates(rpc: &str, wallet: &LoadedWallet) -> Result<Vec<Nakam
 pub(super) fn select_nakama_inputs(
     rpc: &str,
     wallet: &LoadedWallet,
-    required: u64,
-) -> Result<(Vec<UtxoId>, u64), String> {
+    required: u128,
+) -> Result<(Vec<UtxoId>, u128), String> {
     let candidates = nakama_input_candidates(rpc, wallet)?;
     let mut selected = Vec::new();
-    let mut total = 0_u64;
+    let mut total = 0_u128;
     for utxo in candidates {
         selected.push(
             UtxoId::from_str(&utxo.id)
@@ -306,14 +310,14 @@ pub(super) fn reject_manual_fee(args: &[String]) -> Result<(), String> {
 }
 
 pub(super) fn automatic_fee_transaction(
-    mut build: impl FnMut(u64) -> Result<Transaction, String>,
+    mut build: impl FnMut(u128) -> Result<Transaction, String>,
 ) -> Result<Transaction, String> {
-    let mut fee = 0_u64;
+    let mut fee = 0_u128;
 
     for _ in 0..MAX_FEE_CONVERGENCE_ROUNDS {
         let transaction = build(fee)?;
 
-        let size = u64::try_from(
+        let size = u128::try_from(
             canonical_bytes(&transaction)
                 .map_err(|error| error.to_string())?
                 .len(),

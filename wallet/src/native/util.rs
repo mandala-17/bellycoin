@@ -23,12 +23,12 @@ pub(super) fn parse_amount(value: &str) -> Result<Pearl, String> {
         return Err(format!("invalid bellycoin amount `{value}`"));
     }
     let whole = whole
-        .parse::<u64>()
+        .parse::<u128>()
         .map_err(|_| format!("invalid bellycoin amount `{value}`"))?;
     let mut fraction_text = fraction.to_string();
     fraction_text.extend(std::iter::repeat_n('0', DECIMALS as usize - fraction.len()));
     let fraction = fraction_text
-        .parse::<u64>()
+        .parse::<u128>()
         .map_err(|_| format!("invalid bellycoin amount `{value}`"))?;
     let units = whole
         .checked_mul(Pearl::PEARL_PER_BELLYCOIN)
@@ -40,7 +40,7 @@ pub(super) fn parse_amount(value: &str) -> Result<Pearl, String> {
     Ok(Pearl::from_pearl(units))
 }
 
-pub(super) fn format_amount(units: u64) -> String {
+pub(super) fn format_amount(units: u128) -> String {
     let whole = units / Pearl::PEARL_PER_BELLYCOIN;
     let fraction = units % Pearl::PEARL_PER_BELLYCOIN;
     let width = DECIMALS as usize;
