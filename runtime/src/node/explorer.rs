@@ -21,7 +21,7 @@ pub(super) fn nakama_response(
     mempool: &[Transaction],
     address: Address,
     utxo_offset: usize,
-    utxo_after: Option<UtxoRef>,
+    utxo_after: Option<UtxoId>,
 ) -> Result<serde_json::Value, String> {
     let next_height = ledger
         .tip_height()

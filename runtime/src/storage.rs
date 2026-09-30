@@ -8,8 +8,8 @@ use redb::{Database, ReadableDatabase, ReadableTable, ReadableTableMetadata, Tab
 
 const DATABASE_FILE: &str = "bellycoin.redb";
 
-// Reset-chain generation 3 stores owners inside UTXOs and unified asset records.
-const SCHEMA_VERSION: u32 = 5;
+// Schema 6 stores compact 16-byte UTXO identifiers.
+const SCHEMA_VERSION: u32 = 6;
 
 const META: TableDefinition<&str, &[u8]> = TableDefinition::new("metadata");
 const BLOCKS: TableDefinition<u64, &[u8]> = TableDefinition::new("canonical_blocks");

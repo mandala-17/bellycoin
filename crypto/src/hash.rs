@@ -6,8 +6,10 @@ use static_assertions::const_assert_eq;
 use std::{error::Error, fmt};
 
 pub const HASH_SIZE: usize = 32;
+pub const HASH16_SIZE: usize = 16;
 pub const POW_HASH_SIZE: usize = HASH_SIZE;
 const_assert_eq!(HASH_SIZE, 32);
+const_assert_eq!(HASH16_SIZE, 16);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HashParseError;
@@ -24,6 +26,49 @@ impl Error for HashParseError {}
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshSerialize, BorshDeserialize,
 )]
 pub struct Hash(pub [u8; HASH_SIZE]);
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshSerialize, BorshDeserialize,
+)]
+pub struct Hash16([u8; HASH16_SIZE]);
+
+impl Hash16 {
+    pub const fn from_bytes(bytes: [u8; HASH16_SIZE]) -> Self {
+        Self(bytes)
+    }
+    pub const fn as_bytes(&self) -> &[u8; HASH16_SIZE] {
+        &self.0
+    }
+    pub const fn into_bytes(self) -> [u8; HASH16_SIZE] {
+        self.0
+    }
+}
+
+impl fmt::Display for Hash16 {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in self.0 {
+            write!(formatter, "{byte:02x}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::str::FromStr for Hash16 {
+    type Err = HashParseError;
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        if value.len() != HASH16_SIZE * 2 {
+            return Err(HashParseError);
+        }
+        let encoded = value.as_bytes();
+        let mut bytes = [0u8; HASH16_SIZE];
+        for (index, byte) in bytes.iter_mut().enumerate() {
+            let offset = index * 2;
+            *byte = (hex_nibble(encoded[offset]).ok_or(HashParseError)? << 4)
+                | hex_nibble(encoded[offset + 1]).ok_or(HashParseError)?;
+        }
+        Ok(Self(bytes))
+    }
+}
 
 impl Hash {
     pub const ZERO: Self = Self([0; HASH_SIZE]);
@@ -221,6 +266,7 @@ impl PartialEq<PreviousHash> for BlockHash {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HashDomain {
+    UtxoId,
     Transaction,
     SpendIntent,
     Header,
@@ -239,6 +285,7 @@ pub enum HashDomain {
 impl HashDomain {
     fn tag(self) -> &'static [u8] {
         match self {
+            HashDomain::UtxoId => b"BELLYCOIN_UTXO_ID_V1",
             HashDomain::Transaction => b"BELLYCOIN_HASH_TX",
             HashDomain::SpendIntent => b"BELLYCOIN_SPEND_INTENT",
             HashDomain::Header => b"BELLYCOIN_HASH_BLOCK_HEADER",
@@ -277,4 +324,11 @@ pub fn domain(domain: HashDomain, bytes: &[u8]) -> Hash {
 
 pub fn domain_hash(domain: HashDomain, bytes: &[u8]) -> Hash {
     self::domain(domain, bytes)
+}
+
+pub fn domain16(domain: HashDomain, bytes: &[u8]) -> Hash16 {
+    let full = self::domain(domain, bytes);
+    let mut short = [0u8; HASH16_SIZE];
+    short.copy_from_slice(&full.as_bytes()[..HASH16_SIZE]);
+    Hash16::from_bytes(short)
 }

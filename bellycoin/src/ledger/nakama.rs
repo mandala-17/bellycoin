@@ -207,7 +207,7 @@ mod tests {
         consensus::validate_transaction,
         ledger::{Bellycoin, LedgerState},
         transaction::{
-            Input, NakamaAuthorization, Output, Pearl, SpendIntent, Transaction, UtxoRef,
+            Input, NakamaAuthorization, Output, Pearl, SpendIntent, Transaction, UtxoId,
         },
     };
     use crypto::{NakamaSignatureScheme, SigningSeed, TransactionHash, address_from_public_key};
@@ -257,7 +257,7 @@ mod tests {
         let seed = SigningSeed::new(NakamaSignatureScheme::Falcon512, Box::new([9; 32]));
         let chain = ChainContext::new([3; 32]);
         let sender = address_from_public_key(&seed.public_key());
-        let input = UtxoRef::new(TransactionHash([4; 32]), 0);
+        let input = UtxoId::transaction(TransactionHash([4; 32]), 0);
         let mut state = LedgerState::default();
         state
             .utxos
@@ -325,7 +325,7 @@ mod tests {
         let seed = SigningSeed::new(NakamaSignatureScheme::Falcon512, Box::new([11; 32]));
         let chain = ChainContext::new([5; 32]);
         let sender = address_from_public_key(&seed.public_key());
-        let input = UtxoRef::new(TransactionHash([6; 32]), 0);
+        let input = UtxoId::transaction(TransactionHash([6; 32]), 0);
         let mut state = LedgerState::default();
         state
             .utxos
@@ -363,7 +363,7 @@ mod tests {
             .unwrap();
         assert_eq!(state.nakama.public_key(sender), Some(&seed.public_key()));
 
-        let next_input = UtxoRef::new(first_validated.txid, 0);
+        let next_input = UtxoId::transaction(first_validated.txid, 0);
         let next_intent = SpendIntent {
             sender,
             inputs: vec![Input::new(next_input)],

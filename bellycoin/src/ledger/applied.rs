@@ -3,7 +3,7 @@ use crypto::Address;
 use crate::{
     consensus::ValidatedTransaction,
     ledger::{Bellycoin, LedgerState, SpendRollbackJournal, StateError, StateRollbackJournal},
-    transaction::{SpendIntent, UtxoRef},
+    transaction::{SpendIntent, UtxoId},
 };
 use common::Nakama;
 use crypto::TransactionHash;
@@ -75,7 +75,7 @@ impl LedgerState {
             }
 
             for (index, output) in outputs.iter().enumerate() {
-                let id = UtxoRef::new(txid, output_index(index)?);
+                let id = UtxoId::transaction(txid, output_index(index)?);
 
                 let owner = match output.output {
                     Nakama::Address(address) => address,

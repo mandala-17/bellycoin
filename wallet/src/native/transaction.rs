@@ -122,9 +122,9 @@ pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
 
     let inputs = repeated_options(args, "--input")
         .into_iter()
-        .map(UtxoRef::from_str)
+        .map(UtxoId::from_str)
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|_| "invalid --input outpoint; expected 64-hex-txid:index".to_string())?;
+        .map_err(|_| "invalid --input UTXO ID; expected 32 hexadecimal characters".to_string())?;
 
     let wallet = load_wallet(path)?;
     let registered_key = registered_key_available(rpc, &wallet)?;
@@ -212,7 +212,7 @@ pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
     let inputs = candidates
         .iter()
         .map(|utxo| {
-            UtxoRef::from_str(&utxo.id).map_err(|_| "node returned an invalid coin id".to_string())
+            UtxoId::from_str(&utxo.id).map_err(|_| "node returned an invalid coin id".to_string())
         })
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -275,13 +275,13 @@ pub(super) fn select_nakama_inputs(
     rpc: &str,
     wallet: &LoadedWallet,
     required: u64,
-) -> Result<(Vec<UtxoRef>, u64), String> {
+) -> Result<(Vec<UtxoId>, u64), String> {
     let candidates = nakama_input_candidates(rpc, wallet)?;
     let mut selected = Vec::new();
     let mut total = 0_u64;
     for utxo in candidates {
         selected.push(
-            UtxoRef::from_str(&utxo.id)
+            UtxoId::from_str(&utxo.id)
                 .map_err(|_| "node returned an invalid coin id".to_string())?,
         );
         total = total

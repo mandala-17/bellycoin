@@ -206,7 +206,7 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
                     "utxo_after" => {
                         utxo_after = Some(
                             value
-                                .parse::<UtxoRef>()
+                                .parse::<UtxoId>()
                                 .map_err(|_| "invalid nakama UTXO cursor")?,
                         );
                     }

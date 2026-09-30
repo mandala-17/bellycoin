@@ -15,8 +15,7 @@ use crate::{
     ledger::{Bellycoin, LedgerState, SpendRollbackJournal, StateError, StateRollbackJournal},
 };
 
-use crate::transaction::UtxoRef;
-use crypto::TransactionHash;
+use crate::transaction::UtxoId;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct Ledger {
@@ -79,7 +78,7 @@ impl Ledger {
 
         if !block.is_genesis() {
             let emission = validate_emission(block)?;
-            let id = UtxoRef::new(TransactionHash(emission.origin().0), 0);
+            let id = UtxoId::emission(emission.origin());
             state.utxos.insert_pearl(
                 id,
                 Bellycoin {
@@ -200,7 +199,7 @@ impl TransactionStateView for LedgerState {
     fn public_key(&self, address: crypto::Address) -> Option<crypto::PublicKey> {
         self.nakama.public_key(address).cloned()
     }
-    fn pearl(&self, id: UtxoRef) -> Option<CoinInputState> {
+    fn pearl(&self, id: UtxoId) -> Option<CoinInputState> {
         self.utxos.pearl(&id).map(|pearl| CoinInputState {
             amount: pearl.amount,
             owner: pearl.owner,

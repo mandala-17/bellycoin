@@ -3,7 +3,7 @@
 use super::nakama::{NakamaName, NakamaRegistryState};
 use super::utxo::{self, Bellycoin};
 
-use crate::transaction::{Pearl, UtxoRef};
+use crate::transaction::{Pearl, UtxoId};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use crypto::Address;
@@ -34,8 +34,8 @@ impl CoinRecord {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct SpendRollbackJournal {
-    pub(crate) consumed_pearls: Vec<(UtxoRef, Bellycoin)>,
-    pub(crate) created_pearl_ids: Vec<UtxoRef>,
+    pub(crate) consumed_pearls: Vec<(UtxoId, Bellycoin)>,
+    pub(crate) created_pearl_ids: Vec<UtxoId>,
     pub(crate) mined: Pearl,
 }
 

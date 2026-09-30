@@ -4,7 +4,7 @@ use common::ChainContext;
 use crypto::{Address, PublicKey, TransactionHash};
 
 use crate::ledger::nakama::{NakamaError, RegisterNakama};
-use crate::transaction::{Input, IntentError, Output, Pearl, SpendIntent, Transaction, UtxoRef};
+use crate::transaction::{Input, IntentError, Output, Pearl, SpendIntent, Transaction, UtxoId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidatedTransaction {
@@ -22,7 +22,7 @@ pub struct CoinInputState {
 }
 
 pub trait TransactionStateView {
-    fn pearl(&self, id: UtxoRef) -> Option<CoinInputState>;
+    fn pearl(&self, id: UtxoId) -> Option<CoinInputState>;
     fn public_key(&self, _address: Address) -> Option<PublicKey> {
         None
     }
@@ -184,13 +184,13 @@ mod tests {
     use crypto::TransactionHash;
 
     struct OneInput {
-        outpoint: UtxoRef,
+        outpoint: UtxoId,
         amount: Pearl,
         owner: Address,
     }
 
     impl TransactionStateView for OneInput {
-        fn pearl(&self, id: UtxoRef) -> Option<CoinInputState> {
+        fn pearl(&self, id: UtxoId) -> Option<CoinInputState> {
             (id == self.outpoint).then_some(CoinInputState {
                 amount: self.amount,
                 owner: self.owner,
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn spend_requires_exact_value_conservation() {
         let sender = Address([7; crypto::ADDRESS_SIZE]);
-        let outpoint = UtxoRef::new(TransactionHash([9; crypto::HASH_SIZE]), 0);
+        let outpoint = UtxoId::transaction(TransactionHash([9; crypto::HASH_SIZE]), 0);
         let state = OneInput {
             outpoint,
             amount: Pearl::from_pearl(100),

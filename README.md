@@ -37,16 +37,18 @@ Previous UTXO
 A UTXO is referenced using:
 
 ```rust
-pub struct UtxoRef {
-    pub txid: TransactionHash,
-    pub index: u32,
-}
+pub struct UtxoId(Hash16);
 ```
+
+The 16-byte ID is derived from the full transaction hash and output index, or
+from the block emission origin. A distinct origin-kind byte separates those
+two cases. The protocol hashes these bytes with the `BELLYCOIN_UTXO_ID_V1`
+domain and keeps the first 16 bytes. Its text form is 32 hexadecimal characters.
 
 The ledger maps a UTXO reference to the actual Bellycoin value:
 
 ```text
-UtxoRef -> Bellycoin
+UtxoId -> Bellycoin
 ```
 
 Conceptually:
@@ -54,7 +56,7 @@ Conceptually:
 ```text
 Pearl      = smallest BELLY unit
 Bellycoin  = spendable coin
-UtxoRef    = reference to a Bellycoin UTXO
+UtxoId     = 16-byte identifier of a Bellycoin UTXO
 ```
 
 ---
@@ -125,14 +127,14 @@ pub struct Bellycoin {
 The UTXO set maps references to coins:
 
 ```rust
-BTreeMap<UtxoRef, Bellycoin>
+BTreeMap<UtxoId, Bellycoin>
 ```
 
 An input references an existing UTXO:
 
 ```rust
 pub struct CInput {
-    pub previous_output: UtxoRef,
+    pub previous_output: UtxoId,
 }
 ```
 

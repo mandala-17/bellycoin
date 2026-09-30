@@ -8,7 +8,7 @@ use std::{
 use bellycoin::{
     consensus::{DECIMALS, Pearl},
     crypto::{Address, Signature, address_from_string, canonical_bytes},
-    transaction::{Input, Output, SpendIntent, Transaction, UtxoRef},
+    transaction::{Input, Output, SpendIntent, Transaction, UtxoId},
 };
 use serde::Deserialize;
 use wallet::{

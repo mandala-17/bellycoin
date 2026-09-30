@@ -30,7 +30,7 @@ use bellycoin::{
     },
     genesis::{EXPECTED_GENESIS_HASH, chain_spec_hash, genesis_block},
     ledger::Ledger,
-    transaction::{Output, Pearl, Transaction, UtxoRef},
+    transaction::{Output, Pearl, Transaction, UtxoId},
 };
 
 const NODE_ID_FILE: &str = "node-id";

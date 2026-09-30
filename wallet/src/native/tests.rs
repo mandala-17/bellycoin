@@ -106,25 +106,25 @@ mod tests {
             utxos: vec![
                 NakamaUtxo {
                     id: "available-one".into(),
-                    amount: 2 * Pearl::PEARL_PER_COIN,
+                    amount: 2 * Pearl::PEARL_PER_BELLYCOIN,
                     reserved: false,
                 },
                 NakamaUtxo {
                     id: "available-two".into(),
-                    amount: 3 * Pearl::PEARL_PER_COIN,
+                    amount: 3 * Pearl::PEARL_PER_BELLYCOIN,
                     reserved: false,
                 },
                 NakamaUtxo {
                     id: "reserved".into(),
-                    amount: Pearl::PEARL_PER_COIN,
+                    amount: Pearl::PEARL_PER_BELLYCOIN,
                     reserved: true,
                 },
             ],
         };
 
         assert_eq!(
-            format_amount(2 * Pearl::PEARL_PER_COIN + 1),
-            "2.000001 COIN"
+            format_amount(2 * Pearl::PEARL_PER_BELLYCOIN + 1),
+            "2.00000001 bellycoin"
         );
         assert_eq!(utxo_status(&nakama.utxos[0]), "available");
         assert_eq!(utxo_status(&nakama.utxos[1]), "available");
