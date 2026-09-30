@@ -7,7 +7,7 @@ pub(super) fn print_balance(args: &[String]) -> Result<(), String> {
         Zeroizing::new(fs::read(path).map_err(|error| format!("failed to read {path}: {error}"))?);
     let address = bellycoin::crypto::address_to_string(&wallet_address_from_file_bytes(&bytes)?);
     let balance: BalanceResponse = http_get_json(rpc, &format!("/balance/{address}"))?;
-    let supply: NodeSupplyResponse = http_get_json(rpc, "/status")?;
+    let status: NodeStatusResponse = http_get_json(rpc, "/status")?;
     let names = rpc::fetch_registered_names(rpc, &address)?;
 
     println!("Address: {address}");
@@ -15,8 +15,7 @@ pub(super) fn print_balance(args: &[String]) -> Result<(), String> {
     println!("Available: {}", format_amount(balance.total));
     println!("Reserved: {}", format_amount(balance.reserved));
     println!("UTXOs: {}", balance.utxo_count);
-    println!("Total Mined: {}", format_amount(supply.total_mined));
-    println!("Supply: {}", format_amount(supply.supply));
+    println!("Total Mined: {}", format_amount(status.total_mined));
 
     Ok(())
 }

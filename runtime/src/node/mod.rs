@@ -17,7 +17,6 @@ use crate::sync::{
     HeaderChainChunk, MAX_HEADER_CHAIN_CHUNK_HEADERS, MAX_HEADER_CHAIN_CHUNK_SIZE,
     decode_header_chain_chunk,
 };
-use borsh::{BorshDeserialize, BorshSerialize};
 use bellycoin::{
     blockchain::{Block, Emission, MAX_BLOCK_SIZE, block_bytes, decode_block},
     common::{Height, Nakama, Nonce},
@@ -32,6 +31,7 @@ use bellycoin::{
     ledger::Ledger,
     transaction::{Output, Pearl, Transaction, UtxoId},
 };
+use borsh::{BorshDeserialize, BorshSerialize};
 
 const NODE_ID_FILE: &str = "node-id";
 const MAX_STORED_BLOCK_SIZE: usize = MAX_BLOCK_SIZE + 1024;
@@ -57,7 +57,7 @@ const API_DOCS_HTML: &[u8] = br#"<!doctype html>
 </html>
 "#;
 const P2P_MAGIC: [u8; 8] = *b"XPQP2P01";
-const P2P_PROTOCOL_VERSION: u32 = 1;
+const P2P_PROTOCOL_VERSION: u32 = 2;
 const CAPABILITY_PEER_DISCOVERY: u64 = 1 << 0;
 const CAPABILITY_RELAY: u64 = 1 << 1;
 const LOCAL_CAPABILITIES: u64 = CAPABILITY_PEER_DISCOVERY | CAPABILITY_RELAY;
@@ -103,7 +103,6 @@ struct HeaderSyncResult {
     ancestor_hash: BlockHash,
     headers: Vec<bellycoin::consensus::HeaderAtHeight>,
     peer_work: Work,
-    peer_weight: u64,
     preferred: bool,
 }
 
@@ -113,7 +112,6 @@ struct CachedLedger {
     ledger: Arc<Ledger>,
     header_checkpoints: Arc<Vec<state::HeaderStateCheckpoint>>,
     cumulative_work: Work,
-    cumulative_weight: u64,
 }
 
 static LEDGER_CACHE: OnceLock<RwLock<Option<CachedLedger>>> = OnceLock::new();
@@ -143,7 +141,6 @@ struct Handshake {
     tip_height: Height,
     tip_hash: [u8; 32],
     cumulative_work: [u64; 8],
-    cumulative_weight: u64,
 }
 
 struct ConnectedPeer {
@@ -161,7 +158,6 @@ struct GossipInventory {
     tip_height: Height,
     tip_hash: [u8; 32],
     cumulative_work: [u64; 8],
-    cumulative_weight: u64,
     hash: Vec<[u8; 32]>,
 }
 

@@ -9,8 +9,9 @@ use common::{ChainContext, Height};
 use crate::{
     blockchain::{Block, Chain, ChainError},
     consensus::{
-        ApplyBlockState, CoinInputState, ConsensusError, EmissionError, TransactionConsensusError,
-        TransactionStateView, ValidatedBlock, validate_emission, validate_transaction,
+        ApplyBlockState, BellycoinInputState, ConsensusError, EmissionError,
+        TransactionConsensusError, TransactionStateView, ValidatedBlock, validate_emission,
+        validate_transaction,
     },
     ledger::{Bellycoin, LedgerState, SpendRollbackJournal, StateError, StateRollbackJournal},
 };
@@ -31,7 +32,7 @@ struct ExecutedBlock {
     state: LedgerState,
     journals: Vec<StateRollbackJournal>,
     state_root: StateRoot,
-    block_weight: u32,
+    block_size: u32,
     chain_context: ChainContext,
 }
 
@@ -61,14 +62,13 @@ impl Ledger {
         block: &Block,
     ) -> Result<(StateRoot, u32), LedgerError> {
         let executed = self.execute_block(block)?;
-        Ok((executed.state_root, executed.block_weight))
+        Ok((executed.state_root, executed.block_size))
     }
 
     fn execute_block(&self, block: &Block) -> Result<ExecutedBlock, LedgerError> {
         let mut state = self.state.clone();
         let mut journals = Vec::new();
-        let block_weight =
-            u32::try_from(block.weight()?).map_err(|_| LedgerError::InvalidBlockWeight)?;
+        let block_size = u32::try_from(block.size()?).map_err(|_| LedgerError::InvalidBlockSize)?;
         let height = block.height();
         let chain_context = match self.chain_context {
             Some(context) => context,
@@ -86,8 +86,8 @@ impl Ledger {
                     owner: emission.recipient(),
                 },
             )?;
-            state.coin.total_mined = state
-                .coin
+            state.bellycoin.total_mined = state
+                .bellycoin
                 .total_mined
                 .checked_add(emission.subsidy())
                 .ok_or(StateError::AmountOverflow)?;
@@ -115,7 +115,7 @@ impl Ledger {
             state,
             journals,
             state_root,
-            block_weight,
+            block_size,
             chain_context,
         })
     }
@@ -159,8 +159,8 @@ impl Ledger {
         let height = block.height();
         let executed = self.execute_block(block)?;
 
-        if executed.block_weight != block.block_weight() {
-            return Err(LedgerError::InvalidBlockWeight);
+        if executed.block_size != block.block_size() {
+            return Err(LedgerError::InvalidBlockSize);
         }
         if block.state_root() != executed.state_root {
             return Err(LedgerError::InvalidStateRoot);
@@ -199,8 +199,8 @@ impl TransactionStateView for LedgerState {
     fn public_key(&self, address: crypto::Address) -> Option<crypto::PublicKey> {
         self.nakama.public_key(address).cloned()
     }
-    fn pearl(&self, id: UtxoId) -> Option<CoinInputState> {
-        self.utxos.pearl(&id).map(|pearl| CoinInputState {
+    fn pearl(&self, id: UtxoId) -> Option<BellycoinInputState> {
+        self.utxos.pearl(&id).map(|pearl| BellycoinInputState {
             amount: pearl.amount,
             owner: pearl.owner,
         })
@@ -221,11 +221,11 @@ impl TransactionStateView for LedgerState {
 
 impl LedgerState {
     pub(crate) fn application_state_root(&self) -> Result<StateRoot, LedgerError> {
-        if self.utxos.is_empty() && self.coin.total_mined.is_zero() && self.nakama.is_empty() {
+        if self.utxos.is_empty() && self.bellycoin.total_mined.is_zero() && self.nakama.is_empty() {
             return Ok(StateRoot::ZERO);
         }
 
-        let state = canonical_bytes(&(&self.utxos, &self.coin, &self.nakama))?;
+        let state = canonical_bytes(&(&self.utxos, &self.bellycoin, &self.nakama))?;
 
         Ok(StateRoot(
             domain(HashDomain::ProtocolState, &state).into_bytes(),
@@ -257,7 +257,7 @@ pub enum LedgerError {
 
     InvalidStateRoot,
 
-    InvalidBlockWeight,
+    InvalidBlockSize,
 }
 
 impl fmt::Display for LedgerError {
@@ -291,8 +291,8 @@ impl fmt::Display for LedgerError {
 
             Self::InvalidStateRoot => formatter.write_str("block state root does not match ledger"),
 
-            Self::InvalidBlockWeight => {
-                formatter.write_str("block execution weight does not match ledger")
+            Self::InvalidBlockSize => {
+                formatter.write_str("block execution size does not match ledger")
             }
         }
     }
@@ -362,8 +362,7 @@ mod p3e_block_atomicity_tests {
         let miner = crypto::Address([0x31; crypto::ADDRESS_SIZE]);
         commit_empty_block(&mut ledger, miner);
         let subsidy = crate::consensus::expected_emission_for_height(Height(1));
-        assert_eq!(ledger.state.coin.total_mined, subsidy);
-        assert_eq!(ledger.state.coin.supply(), subsidy);
+        assert_eq!(ledger.state.bellycoin.total_mined, subsidy);
         let outputs = ledger.state.utxos.pearls().collect::<Vec<_>>();
         assert_eq!(outputs.len(), 1);
         assert_eq!(outputs[0].1.amount, subsidy);
@@ -402,12 +401,12 @@ mod p3e_block_atomicity_tests {
     fn commit_empty_block(ledger: &mut Ledger, miner: crypto::Address) -> Block {
         let mut block = empty_next_candidate(ledger, miner);
 
-        let (state_root, block_weight) = ledger
+        let (state_root, block_size) = ledger
             .preview_block_commitments(&block)
             .expect("preview commitments");
 
         block.set_state_root(state_root);
-        block.set_block_weight(block_weight);
+        block.set_block_size(block_size);
 
         let validated =
             validate_candidate_for_apply(&block, &ledger.chain).expect("valid candidate");
@@ -478,12 +477,12 @@ mod p3e_block_atomicity_tests {
 
         let mut block = empty_height_one_candidate(&ledger, miner);
 
-        let (state_root, block_weight) = ledger
+        let (state_root, block_size) = ledger
             .preview_block_commitments(&block)
             .expect("preview commitments");
 
         block.set_state_root(state_root);
-        block.set_block_weight(block_weight);
+        block.set_block_size(block_size);
 
         let validated =
             validate_candidate_for_apply(&block, &ledger.chain).expect("valid candidate");
@@ -594,7 +593,7 @@ mod p3e_block_atomicity_tests {
     }
 
     #[test]
-    fn invalid_block_weight_after_staging_does_not_mutate_ledger() {
+    fn invalid_block_size_after_staging_does_not_mutate_ledger() {
         let mut ledger = genesis::genesis_ledger().expect("genesis ledger");
 
         let miner = crypto::Address([0x71; crypto::ADDRESS_SIZE]);
@@ -604,24 +603,24 @@ mod p3e_block_atomicity_tests {
 
         let mut block = empty_next_candidate(&ledger, miner);
 
-        let (state_root, block_weight) = ledger
+        let (state_root, block_size) = ledger
             .preview_block_commitments(&block)
             .expect("preview commitments");
 
         block.set_state_root(state_root);
 
         //
-        // Keep the weight structurally plausible, but make it
-        // different from the canonical execution weight.
+        // Keep the size structurally plausible, but make it
+        // different from the canonical execution size.
         //
-        block.set_block_weight(
-            block_weight
+        block.set_block_size(
+            block_size
                 .checked_add(1)
-                .expect("fixture block weight overflow"),
+                .expect("fixture block size overflow"),
         );
 
         //
-        // The malformed weight is still large enough to satisfy
+        // The malformed size is still large enough to satisfy
         // block-local structural validation.
         //
         let validated = validate_candidate_for_apply(&block, &ledger.chain)
@@ -629,7 +628,7 @@ mod p3e_block_atomicity_tests {
 
         assert!(matches!(
             ledger.apply_validated_block(validated),
-            Err(LedgerError::InvalidBlockWeight)
+            Err(LedgerError::InvalidBlockSize)
         ));
 
         assert_eq!(ledger_bytes(&ledger), before);

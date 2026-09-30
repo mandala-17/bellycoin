@@ -92,23 +92,20 @@ pub(super) struct HeaderStateCheckpoint {
     pub(super) height: Height,
     pub(super) hash: [u8; 32],
     pub(super) cumulative_work: bellycoin::consensus::Work,
-    pub(super) cumulative_weight: u64,
 }
 
 pub(super) type HeaderSnapshot = (
     Arc<Ledger>,
     Arc<Vec<HeaderStateCheckpoint>>,
     bellycoin::consensus::Work,
-    u64,
 );
 
 pub(super) fn build_header_state_checkpoints(
     ledger: &Ledger,
-) -> Result<(Vec<HeaderStateCheckpoint>, bellycoin::consensus::Work, u64), String> {
+) -> Result<(Vec<HeaderStateCheckpoint>, bellycoin::consensus::Work), String> {
     let mut checkpoints = Vec::new();
 
     let mut cumulative_work = bellycoin::consensus::Work::ZERO;
-    let mut cumulative_weight = 0_u64;
 
     for block in ledger.chain.blocks() {
         let height = block.height();
@@ -124,30 +121,27 @@ pub(super) fn build_header_state_checkpoints(
                 height,
                 hash,
                 cumulative_work,
-                cumulative_weight,
             });
 
             continue;
         }
 
-        let block_work = bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
-            format!(
-                "invalid target bits {:08x} at height {}",
-                block.target_bits(),
-                height.0,
-            )
-        })?;
+        let block_work =
+            bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
+                format!(
+                    "invalid target bits {:08x} at height {}",
+                    block.target_bits(),
+                    height.0,
+                )
+            })?;
 
         cumulative_work = cumulative_work.saturating_add(block_work);
-
-        cumulative_weight = cumulative_weight.saturating_add(u64::from(block.block_weight()));
 
         if height.0.is_multiple_of(HEADER_STATE_CHECKPOINT_INTERVAL) {
             checkpoints.push(HeaderStateCheckpoint {
                 height,
                 hash,
                 cumulative_work,
-                cumulative_weight,
             });
         }
     }
@@ -156,13 +150,13 @@ pub(super) fn build_header_state_checkpoints(
         return Err("canonical chain has no genesis checkpoint".into());
     }
 
-    Ok((checkpoints, cumulative_work, cumulative_weight))
+    Ok((checkpoints, cumulative_work))
 }
 
 fn updated_header_state_checkpoints(
     path: &Path,
     ledger: &Ledger,
-) -> Result<(Vec<HeaderStateCheckpoint>, bellycoin::consensus::Work, u64), String> {
+) -> Result<(Vec<HeaderStateCheckpoint>, bellycoin::consensus::Work), String> {
     let previous = {
         let cache = ledger_cache()
             .read()
@@ -199,7 +193,6 @@ fn updated_header_state_checkpoints(
 
     let mut checkpoints = previous[..=anchor_index].to_vec();
     let mut cumulative_work = anchor.cumulative_work;
-    let mut cumulative_weight = anchor.cumulative_weight;
 
     let mut next_height = anchor.height.0.saturating_add(1);
 
@@ -211,24 +204,22 @@ fn updated_header_state_checkpoints(
             .block(&height)
             .ok_or("canonical block is missing while updating checkpoints")?;
 
-        let block_work = bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
-            format!(
-                "invalid target bits {:08x} at height {}",
-                block.target_bits(),
-                height.0,
-            )
-        })?;
+        let block_work =
+            bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
+                format!(
+                    "invalid target bits {:08x} at height {}",
+                    block.target_bits(),
+                    height.0,
+                )
+            })?;
 
         cumulative_work = cumulative_work.saturating_add(block_work);
-
-        cumulative_weight = cumulative_weight.saturating_add(u64::from(block.block_weight()));
 
         if height.0.is_multiple_of(HEADER_STATE_CHECKPOINT_INTERVAL) {
             checkpoints.push(HeaderStateCheckpoint {
                 height,
                 hash: block.hash().map_err(|error| error.to_string())?.0,
                 cumulative_work,
-                cumulative_weight,
             });
         }
 
@@ -239,7 +230,7 @@ fn updated_header_state_checkpoints(
         next_height = next;
     }
 
-    Ok((checkpoints, cumulative_work, cumulative_weight))
+    Ok((checkpoints, cumulative_work))
 }
 
 pub(super) fn ledger_cache() -> &'static RwLock<Option<CachedLedger>> {
@@ -271,7 +262,6 @@ pub(super) fn load_or_initialize_header_snapshot(path: &Path) -> Result<HeaderSn
         Arc::clone(&cached.ledger),
         Arc::clone(&cached.header_checkpoints),
         cached.cumulative_work,
-        cached.cumulative_weight,
     ))
 }
 
@@ -300,10 +290,9 @@ pub(super) fn cached_canonical_block_bytes(
 }
 
 pub(super) fn cached_handshake(path: &Path) -> Result<Handshake, String> {
-    let (ledger, _header_checkpoints, cumulative_work, cumulative_weight) =
-        load_or_initialize_header_snapshot(path)?;
+    let (ledger, _header_checkpoints, cumulative_work) = load_or_initialize_header_snapshot(path)?;
 
-    local_handshake(path, &ledger, cumulative_work, cumulative_weight)
+    local_handshake(path, &ledger, cumulative_work)
 }
 
 pub(super) fn load_or_create_node_id(database: &Path) -> Result<[u8; 32], String> {
@@ -320,8 +309,7 @@ pub(super) fn load_or_create_node_id(database: &Path) -> Result<[u8; 32], String
 }
 
 pub(super) fn update_ledger_cache(path: &Path, ledger: Ledger) -> Result<Arc<Ledger>, String> {
-    let (checkpoints, cumulative_work, cumulative_weight) =
-        updated_header_state_checkpoints(path, &ledger)?;
+    let (checkpoints, cumulative_work) = updated_header_state_checkpoints(path, &ledger)?;
 
     let checkpoints = Arc::new(checkpoints);
 
@@ -336,7 +324,6 @@ pub(super) fn update_ledger_cache(path: &Path, ledger: Ledger) -> Result<Arc<Led
         ledger: Arc::clone(&ledger),
         header_checkpoints: checkpoints,
         cumulative_work,
-        cumulative_weight,
     });
 
     drop(cache);

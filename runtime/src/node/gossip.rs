@@ -2,7 +2,7 @@ use super::*;
 use super::{mempool::*, p2p::*, protocol::*, state::*};
 
 pub(super) fn gossip_inventory(database: &Path) -> Result<GossipInventory, String> {
-    let (ledger, _header_checkpoints, cumulative_work, cumulative_weight) =
+    let (ledger, _header_checkpoints, cumulative_work) =
         load_or_initialize_header_snapshot(database)?;
     let tip_height = ledger.tip_height().ok_or("canonical genesis is missing")?;
     let tip_hash = ledger.tip_hash().ok_or("canonical genesis is missing")?.0;
@@ -18,7 +18,6 @@ pub(super) fn gossip_inventory(database: &Path) -> Result<GossipInventory, Strin
         tip_height,
         tip_hash,
         cumulative_work: cumulative_work.to_be_limbs(),
-        cumulative_weight,
         hash,
     })
 }
@@ -26,10 +25,8 @@ pub(super) fn gossip_inventory(database: &Path) -> Result<GossipInventory, Strin
 pub(super) fn inventory_preferred(candidate: &GossipInventory, current: &GossipInventory) -> bool {
     compare_chain_tips(
         Work::from_be_limbs(candidate.cumulative_work),
-        candidate.cumulative_weight,
         BlockHash(candidate.tip_hash),
         Work::from_be_limbs(current.cumulative_work),
-        current.cumulative_weight,
         BlockHash(current.tip_hash),
     )
     .is_gt()
@@ -43,7 +40,6 @@ pub(super) fn handshake_from_inventory(
     current.tip_height = inventory.tip_height;
     current.tip_hash = inventory.tip_hash;
     current.cumulative_work = inventory.cumulative_work;
-    current.cumulative_weight = inventory.cumulative_weight;
     current
 }
 
@@ -52,7 +48,7 @@ pub(super) fn decode_gossip_inventory(bytes: &[u8]) -> Result<GossipInventory, S
         return Err("gossip inventory exceeds size limit".into());
     }
     let declared = bytes
-        .get(112..116)
+        .get(104..108)
         .and_then(|count| count.try_into().ok())
         .map(u32::from_le_bytes)
         .ok_or("gossip inventory is truncated")? as usize;

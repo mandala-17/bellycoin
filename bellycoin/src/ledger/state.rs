@@ -11,7 +11,7 @@ use crypto::Address;
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct LedgerState {
     pub utxos: utxo::UtxoSet,
-    pub coin: CoinRecord,
+    pub bellycoin: BellycoinRecord,
     pub nakama: NakamaRegistryState,
 }
 
@@ -22,14 +22,8 @@ impl LedgerState {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct CoinRecord {
+pub struct BellycoinRecord {
     pub total_mined: Pearl,
-}
-
-impl CoinRecord {
-    pub const fn supply(&self) -> Pearl {
-        self.total_mined
-    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]

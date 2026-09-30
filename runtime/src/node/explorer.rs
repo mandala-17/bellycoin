@@ -26,7 +26,7 @@ pub(super) fn nakama_response(
     let next_height = ledger
         .tip_height()
         .map_or(0, |height| height.0.saturating_add(1));
-    let reserved = reserved_coin_inputs(mempool);
+    let reserved = reserved_bellycoin_inputs(mempool);
     let mut total = Pearl::from_pearl(0);
     let mut nakama_utxos = ledger
         .state()
@@ -89,7 +89,7 @@ pub(super) fn balance_response(
     mempool: &[Transaction],
     address: Address,
 ) -> Result<serde_json::Value, String> {
-    let reserved_ids = reserved_coin_inputs(mempool);
+    let reserved_ids = reserved_bellycoin_inputs(mempool);
     let mut total = Pearl::from_pearl(0);
     let mut reserved = Pearl::from_pearl(0);
     let mut utxo_count = 0_usize;
@@ -133,7 +133,7 @@ pub(super) fn explorer_address_response(
     limit: usize,
     before: Option<[u8; crate::storage::ADDRESS_ACTIVITY_CURSOR_SIZE]>,
 ) -> Result<serde_json::Value, String> {
-    let reserved_ids = reserved_coin_inputs(mempool);
+    let reserved_ids = reserved_bellycoin_inputs(mempool);
     let mut total = Pearl::from_pearl(0);
     let mut reserved = Pearl::from_pearl(0);
     for utxo in ledger
@@ -395,7 +395,6 @@ pub(super) fn transaction_kind(_transaction: &Transaction) -> &'static str {
 pub(super) fn status_response(
     ledger: &Ledger,
     cumulative_work: Work,
-    cumulative_weight: u64,
 ) -> Result<serde_json::Value, String> {
     let tip_height = ledger.tip_height().ok_or("canonical genesis is missing")?;
     let tip_hash = ledger.tip_hash().ok_or("canonical genesis is missing")?;
@@ -408,9 +407,7 @@ pub(super) fn status_response(
         "tip_hash": hex::encode(tip_hash.0),
         "next_difficulty": next_difficulty,
         "cumulative_work": format_work(cumulative_work.to_be_limbs()),
-        "cumulative_weight": cumulative_weight.to_string(),
-        "total_mined": ledger.state().coin.total_mined.as_pearl(),
-        "supply": ledger.state().coin.supply().as_pearl(),
+        "total_mined": ledger.state().bellycoin.total_mined.as_pearl(),
     }))
 }
 
@@ -454,7 +451,7 @@ pub(super) fn block_response(_ledger: &Ledger, block: &Block) -> Result<serde_js
         "hash": hex::encode(block.hash().map_err(|error| error.to_string())?.0),
         "previous_hash": hex::encode(block.previous_hash().0),
         "difficulty": block.target_bits(),
-        "block_weight": block.block_weight(),
+        "block_size": block.block_size(),
         "nonce": block.header.nonce.0,
         "transactions": block.transaction_count(),
         "hash": hash,

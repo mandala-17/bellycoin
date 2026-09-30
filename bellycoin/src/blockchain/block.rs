@@ -28,8 +28,8 @@ pub struct Header {
     pub state_root: StateRoot,
     pub target_bits: u32,
     pub timestamp: u64,
-    /// Canonical serialized block size plus any ledger execution reservation.
-    pub block_weight: u32,
+    /// Exact canonical serialized block size in bytes.
+    pub block_size: u32,
     pub nonce: Nonce,
 }
 
@@ -40,7 +40,7 @@ impl Header {
         state_root: StateRoot,
         target_bits: u32,
         timestamp: u64,
-        block_weight: u32,
+        block_size: u32,
         nonce: Nonce,
     ) -> Self {
         Self {
@@ -49,7 +49,7 @@ impl Header {
             state_root,
             target_bits,
             timestamp,
-            block_weight,
+            block_size,
             nonce,
         }
     }
@@ -134,11 +134,6 @@ impl Block {
         &self.body.transactions
     }
 
-    /// Compatibility accessor retained for callers that still use coinbase naming.
-    pub fn coinbase(&self) -> Option<&Emission> {
-        self.emission()
-    }
-
     pub fn genesis() -> Result<Self, CodecError> {
         Self::from_protocol_transactions(
             Height(0),
@@ -181,7 +176,7 @@ impl Block {
             },
         };
 
-        block.refresh_block_weight()?;
+        block.refresh_block_size()?;
         Ok(block)
     }
 
@@ -204,13 +199,12 @@ impl Block {
             return Err(BlockError::DuplicateTransaction);
         }
 
-        let serialized_weight = self.weight()?;
-        if serialized_weight > MAX_BLOCK_SIZE || self.header.block_weight as usize > MAX_BLOCK_SIZE
-        {
-            return Err(BlockError::BlockTooHeavy);
+        let serialized_size = self.size()?;
+        if serialized_size > MAX_BLOCK_SIZE || self.header.block_size as usize > MAX_BLOCK_SIZE {
+            return Err(BlockError::BlockTooLarge);
         }
-        if (self.header.block_weight as usize) < serialized_weight {
-            return Err(BlockError::InvalidBlockWeight);
+        if (self.header.block_size as usize) < serialized_size {
+            return Err(BlockError::InvalidBlockSize);
         }
 
         if !transactions_are_structurally_valid(&self.body.transactions) {
@@ -254,8 +248,8 @@ impl Block {
         self.header.state_root = state_root.into();
     }
 
-    pub fn set_block_weight(&mut self, block_weight: u32) {
-        self.header.block_weight = block_weight;
+    pub fn set_block_size(&mut self, block_size: u32) {
+        self.header.block_size = block_size;
     }
 
     pub const fn target_bits(&self) -> u32 {
@@ -266,8 +260,8 @@ impl Block {
         self.header.timestamp
     }
 
-    pub const fn block_weight(&self) -> u32 {
-        self.header.block_weight
+    pub const fn block_size(&self) -> u32 {
+        self.header.block_size
     }
 
     pub fn transaction_count(&self) -> usize {
@@ -278,18 +272,14 @@ impl Block {
         self.height.0 == 0
     }
 
-    pub fn serialized_size(&self) -> Result<usize, CodecError> {
+    pub fn size(&self) -> Result<usize, CodecError> {
         Ok(self.to_bytes()?.len())
     }
 
-    pub fn weight(&self) -> Result<usize, CodecError> {
-        self.serialized_size()
-    }
-
-    pub fn refresh_block_weight(&mut self) -> Result<(), CodecError> {
-        self.header.block_weight = 0;
-        let weight = self.weight()?;
-        self.header.block_weight = u32::try_from(weight).map_err(|_| CodecError::EncodeFailed)?;
+    pub fn refresh_block_size(&mut self) -> Result<(), CodecError> {
+        self.header.block_size = 0;
+        let size = self.size()?;
+        self.header.block_size = u32::try_from(size).map_err(|_| CodecError::EncodeFailed)?;
         Ok(())
     }
 
@@ -316,21 +306,9 @@ impl Block {
             .ok_or(CodecError::InvalidBlock)
     }
 
-    /// Backward-compatible plural name used by older callers.
-    pub fn transaction_inclusion_proofs(
-        &self,
-        transaction_index: usize,
-    ) -> Result<MerkleInclusionProof, CodecError> {
-        self.transaction_inclusion_proof(transaction_index)
-    }
-
-    pub fn refresh_merkle_root(&mut self) -> Result<(), CodecError> {
-        self.refresh_commitments()
-    }
-
     pub fn refresh_commitments(&mut self) -> Result<(), CodecError> {
         self.header.merkle_root = self.calculate_merkle_root()?;
-        self.refresh_block_weight()?;
+        self.refresh_block_size()?;
         Ok(())
     }
 

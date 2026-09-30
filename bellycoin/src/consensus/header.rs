@@ -40,7 +40,6 @@ pub struct HeaderValidationState {
     pub height: Height,
     pub header: Header,
     pub cumulative_work: Work,
-    pub cumulative_weight: u64,
     pub difficulty_anchor: HeaderAtHeight,
     pub recent_headers: Vec<HeaderAtHeight>,
 }
@@ -93,7 +92,7 @@ pub fn verify_header_chain(
     let mut pow_memory = (headers.len() > 1).then(new_pow_memory);
 
     for current in &headers[1..] {
-        validate_header_weight(&current.header)?;
+        validate_header_size(&current.header)?;
 
         if current.height.0 != previous.height.0.saturating_add(1)
             || BlockHash(current.header.previous_hash.0) != previous.hash()?
@@ -137,8 +136,8 @@ pub fn verify_header_chain(
     Ok((previous.hash()?, cumulative_work))
 }
 
-fn validate_header_weight(header: &Header) -> Result<(), HeaderChainError> {
-    if header.block_weight == 0 || header.block_weight as usize > MAX_BLOCK_SIZE {
+fn validate_header_size(header: &Header) -> Result<(), HeaderChainError> {
+    if header.block_size == 0 || header.block_size as usize > MAX_BLOCK_SIZE {
         return Err(HeaderChainError::InvalidHeaderChain(
             ForkChoiceError::InvalidHeader,
         ));
@@ -192,12 +191,6 @@ pub fn header_validation_state(
         height: tip.height,
         header: tip.header,
         cumulative_work,
-        cumulative_weight: validated_headers
-            .iter()
-            .skip(1)
-            .fold(0_u64, |total, header| {
-                total.saturating_add(u64::from(header.header.block_weight))
-            }),
         difficulty_anchor,
         recent_headers: validated_headers[start..].to_vec(),
     })
@@ -249,7 +242,7 @@ fn verify_header_chain_extension_inner(
     for chain_header in headers {
         let header = &chain_header.header;
 
-        validate_header_weight(header)?;
+        validate_header_size(header)?;
 
         if chain_header.height.0 != previous_height.0.saturating_add(1)
             || BlockHash(header.previous_hash.0) != previous_hash
@@ -360,12 +353,6 @@ fn advanced_header_validation_state(
             .unwrap_or_else(|| state.header.clone()),
 
         cumulative_work,
-
-        cumulative_weight: headers
-            .iter()
-            .fold(state.cumulative_weight, |total, header| {
-                total.saturating_add(u64::from(header.header.block_weight))
-            }),
 
         difficulty_anchor: state.difficulty_anchor.clone(),
 

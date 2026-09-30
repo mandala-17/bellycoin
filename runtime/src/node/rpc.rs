@@ -116,7 +116,7 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
         _ => {}
     }
 
-    let (ledger, _header_checkpoints, cumulative_work, cumulative_weight) =
+    let (ledger, _header_checkpoints, cumulative_work) =
         load_or_initialize_header_snapshot(database)?;
 
     let response = match route {
@@ -155,7 +155,7 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
                 "signature_scheme": key.scheme().as_str(),
             })
         }
-        "/status" => status_response(&ledger, cumulative_work, cumulative_weight)?,
+        "/status" => status_response(&ledger, cumulative_work)?,
         "/fee-policy" => {
             let emission = expected_next_emission(&ledger)?;
             serde_json::json!({

@@ -33,9 +33,9 @@ pub(super) fn exchange_handshake(
         .set_read_timeout(Some(HANDSHAKE_TIMEOUT))
         .and_then(|_| stream.set_write_timeout(Some(HANDSHAKE_TIMEOUT)))
         .map_err(|error| format!("configure peer timeout: {error}"))?;
-    let (ledger, _header_checkpoints, cumulative_work, cumulative_weight) =
+    let (ledger, _header_checkpoints, cumulative_work) =
         load_or_initialize_header_snapshot(database)?;
-    let local = local_handshake(database, &ledger, cumulative_work, cumulative_weight)?;
+    let local = local_handshake(database, &ledger, cumulative_work)?;
     write_handshake(stream, &local)?;
     let peer = read_handshake(stream)?;
     validate_handshake(&peer)?;
@@ -52,7 +52,6 @@ pub(super) fn local_handshake(
     database: &Path,
     ledger: &Ledger,
     cumulative_work: Work,
-    cumulative_weight: u64,
 ) -> Result<Handshake, String> {
     Ok(Handshake {
         magic: P2P_MAGIC,
@@ -67,7 +66,6 @@ pub(super) fn local_handshake(
             .ok_or("local chain has no canonical tip")?
             .0,
         cumulative_work: cumulative_work.to_be_limbs(),
-        cumulative_weight,
     })
 }
 

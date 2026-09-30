@@ -16,13 +16,13 @@ pub struct ValidatedTransaction {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CoinInputState {
+pub struct BellycoinInputState {
     pub amount: Pearl,
     pub owner: Address,
 }
 
 pub trait TransactionStateView {
-    fn pearl(&self, id: UtxoId) -> Option<CoinInputState>;
+    fn pearl(&self, id: UtxoId) -> Option<BellycoinInputState>;
     fn public_key(&self, _address: Address) -> Option<PublicKey> {
         None
     }
@@ -70,7 +70,7 @@ pub fn validate_transaction(
     }
 
     let intent = &transaction.intent;
-    validate_coin_inputs(&intent.inputs, &intent.outputs, intent.sender, state)?;
+    validate_bellycoin_inputs(&intent.inputs, &intent.outputs, intent.sender, state)?;
     if let Some(registration) = &transaction.registration {
         if &registration.public_key != public_key {
             return Err(TransactionConsensusError::InvalidRegistration(
@@ -96,7 +96,7 @@ pub fn validate_transaction(
     })
 }
 
-fn validate_coin_inputs(
+fn validate_bellycoin_inputs(
     inputs: &[Input],
     outputs: &[Output],
     sender: Address,
@@ -190,8 +190,8 @@ mod tests {
     }
 
     impl TransactionStateView for OneInput {
-        fn pearl(&self, id: UtxoId) -> Option<CoinInputState> {
-            (id == self.outpoint).then_some(CoinInputState {
+        fn pearl(&self, id: UtxoId) -> Option<BellycoinInputState> {
+            (id == self.outpoint).then_some(BellycoinInputState {
                 amount: self.amount,
                 owner: self.owner,
             })
@@ -212,16 +212,16 @@ mod tests {
             Output::new(sender, Pearl::from_pearl(90)),
             Output::block_miner(Pearl::from_pearl(10)),
         ];
-        assert!(validate_coin_inputs(&inputs, &outputs, sender, &state).is_ok());
+        assert!(validate_bellycoin_inputs(&inputs, &outputs, sender, &state).is_ok());
 
         let underfunded = [Output::new(sender, Pearl::from_pearl(99))];
         assert!(matches!(
-            validate_coin_inputs(&inputs, &underfunded, sender, &state),
+            validate_bellycoin_inputs(&inputs, &underfunded, sender, &state),
             Err(TransactionConsensusError::ValueMismatch)
         ));
         let overfunded = [Output::new(sender, Pearl::from_pearl(101))];
         assert!(matches!(
-            validate_coin_inputs(&inputs, &overfunded, sender, &state),
+            validate_bellycoin_inputs(&inputs, &overfunded, sender, &state),
             Err(TransactionConsensusError::ValueMismatch)
         ));
     }

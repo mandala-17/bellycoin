@@ -23,7 +23,7 @@ impl UtxoSet {
 
     pub fn insert_pearl(&mut self, outpoint: UtxoId, pearl: Bellycoin) -> Result<(), Error> {
         if self.pearls.contains_key(&outpoint) {
-            return Err(Error::CoinCollision);
+            return Err(Error::BellycoinCollision);
         }
 
         self.pearls.insert(outpoint, pearl);
@@ -53,14 +53,14 @@ impl UtxoSet {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     NotFound,
-    CoinCollision,
+    BellycoinCollision,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotFound => formatter.write_str("UTXO was not found"),
-            Self::CoinCollision => formatter.write_str("pearl UTXO ID already exists"),
+            Self::BellycoinCollision => formatter.write_str("pearl UTXO ID already exists"),
         }
     }
 }
@@ -80,7 +80,7 @@ mod tests {
         };
         let mut set = UtxoSet::default();
         assert_eq!(set.insert_pearl(id, coin), Ok(()));
-        assert_eq!(set.insert_pearl(id, coin), Err(Error::CoinCollision));
+        assert_eq!(set.insert_pearl(id, coin), Err(Error::BellycoinCollision));
         assert_eq!(set.pearl(&id), Some(&coin));
     }
 }

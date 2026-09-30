@@ -74,8 +74,6 @@ pub struct BlockNode {
     pub height: Height,
     pub work: Work,
     pub cumulative_work: Work,
-    pub weight: u64,
-    pub cumulative_weight: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -112,21 +110,20 @@ impl ForkChoice {
             return Err(ForkChoiceError::InvalidDifficulty);
         }
         if !block.is_genesis()
-            && (block.header.block_weight == 0
-                || block.header.block_weight as usize > MAX_BLOCK_SIZE)
+            && (block.header.block_size == 0 || block.header.block_size as usize > MAX_BLOCK_SIZE)
         {
             return Err(ForkChoiceError::InvalidHeader);
         }
 
         let parent = BlockHash(block.previous_hash().0);
-        let (parent_work, parent_weight) = if block.height() == Height(0) {
+        let parent_work = if block.height() == Height(0) {
             if hash != self.expected_genesis {
                 return Err(ForkChoiceError::UnexpectedGenesis);
             }
             if parent != Hash([0; HASH_SIZE]) {
                 return Err(ForkChoiceError::MissingParent);
             }
-            (Work::ZERO, 0)
+            Work::ZERO
         } else {
             let parent_node = self
                 .nodes
@@ -135,7 +132,7 @@ impl ForkChoice {
             if block.height().0 != parent_node.height.0.saturating_add(1) {
                 return Err(ForkChoiceError::InvalidHeight);
             }
-            (parent_node.cumulative_work, parent_node.cumulative_weight)
+            parent_node.cumulative_work
         };
         let expected_difficulty = self.expected_difficulty_for(&block, parent)?;
         if !block.is_genesis() {
@@ -152,20 +149,12 @@ impl ForkChoice {
             block_work(expected_difficulty).ok_or(ForkChoiceError::InvalidDifficulty)?
         };
         let cumulative_work = parent_work.saturating_add(work);
-        let weight = if block.is_genesis() {
-            0
-        } else {
-            u64::from(block.block_weight())
-        };
-        let cumulative_weight = parent_weight.saturating_add(u64::from(weight));
         let node = BlockNode {
             height: block.height(),
             parent,
             hash,
             work,
             cumulative_work,
-            weight,
-            cumulative_weight,
             block,
         };
 
@@ -236,10 +225,8 @@ impl ForkChoice {
             None => true,
             Some(best) => compare_chain_tips(
                 candidate.cumulative_work,
-                candidate.cumulative_weight,
                 candidate.hash,
                 best.cumulative_work,
-                best.cumulative_weight,
                 best.hash,
             )
             .is_gt(),
@@ -466,21 +453,17 @@ fn subtract_u320(mut left: [u64; 5], right: [u64; 5]) -> [u64; 5] {
 
 /// Consensus ordering for valid chain tips.
 ///
-/// Greater locally-computed cumulative work wins. Cumulative canonical block
-/// weight only breaks an exact work tie; it can never compensate for less PoW.
-/// If both totals tie, the numerically smaller block hash wins so every node
+/// Greater locally-computed cumulative work wins. If work ties, the numerically
+/// smaller block hash wins so every node
 /// reaches the same result without trusting peer identity or arrival order.
 pub fn compare_chain_tips(
     left_work: Work,
-    left_weight: u64,
     left_hash: BlockHash,
     right_work: Work,
-    right_weight: u64,
     right_hash: BlockHash,
 ) -> Ordering {
     left_work
         .cmp(&right_work)
-        .then_with(|| left_weight.cmp(&right_weight))
         .then_with(|| right_hash.cmp(&left_hash))
 }
 
@@ -644,6 +627,30 @@ pub fn common_ancestor(
 #[cfg(test)]
 mod chainwork_tests {
     use super::*;
+
+    #[test]
+    fn fork_choice_uses_work_then_hash_for_equal_work() {
+        let lower_work = Work::from_be_limbs([0, 0, 0, 0, 0, 0, 0, 7]);
+        let higher_work = Work::from_be_limbs([0, 0, 0, 0, 0, 0, 0, 8]);
+        assert!(
+            compare_chain_tips(
+                higher_work,
+                BlockHash([9; 32]),
+                lower_work,
+                BlockHash([1; 32])
+            )
+            .is_gt()
+        );
+        assert!(
+            compare_chain_tips(
+                higher_work,
+                BlockHash([1; 32]),
+                higher_work,
+                BlockHash([9; 32])
+            )
+            .is_gt()
+        );
+    }
 
     #[test]
     fn bellycoin_pow_limit_has_expected_chainwork() {

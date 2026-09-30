@@ -6,7 +6,7 @@ pub(super) fn synchronize_headers(
     stream: &mut TcpStream,
     peer: &Handshake,
 ) -> Result<HeaderSyncResult, String> {
-    let (ledger, header_checkpoints, local_cumulative_work, local_cumulative_weight) =
+    let (ledger, header_checkpoints, local_cumulative_work) =
         load_or_initialize_header_snapshot(database)?;
 
     let local_locator = ledger_header_locator(&ledger)?;
@@ -57,21 +57,17 @@ pub(super) fn synchronize_headers(
 
             if state.header.hash().map_err(|error| error.to_string())?.0 != peer.tip_hash
                 || state.cumulative_work.to_be_limbs() != peer.cumulative_work
-                || state.cumulative_weight != peer.cumulative_weight
             {
                 return Err("peer handshake tip/work does not match verified headers".into());
             }
 
             let local_hash = ledger.tip_hash().ok_or("local header chain has no tip")?.0;
             let peer_work = state.cumulative_work;
-            let peer_weight = state.cumulative_weight;
 
             let preferred = compare_chain_tips(
                 peer_work,
-                peer_weight,
                 BlockHash(peer.tip_hash),
                 local_cumulative_work,
-                local_cumulative_weight,
                 BlockHash(local_hash),
             )
             .is_gt();
@@ -81,7 +77,6 @@ pub(super) fn synchronize_headers(
                 ancestor_hash: BlockHash(ancestor_hash.unwrap_or(ancestor)),
                 headers: downloaded,
                 peer_work,
-                peer_weight,
                 preferred,
             });
         }
@@ -209,7 +204,7 @@ pub(super) fn synchronize_blocks(
     let _mutation = state_mutation_lock()?
         .lock()
         .map_err(|_| "state mutation lock is poisoned")?;
-    let (cached_ledger, _header_checkpoints, current_cumulative_work, current_cumulative_weight) =
+    let (cached_ledger, _header_checkpoints, current_cumulative_work) =
         load_or_initialize_header_snapshot(database)?;
     let mut staged = cached_ledger.as_ref().clone();
     let old_tip = staged.tip_hash();
@@ -222,10 +217,8 @@ pub(super) fn synchronize_blocks(
     let current_tip = old_tip.ok_or("canonical chain has no tip during reorg")?;
     if !compare_chain_tips(
         sync.peer_work,
-        sync.peer_weight,
         new_tip,
         current_cumulative_work,
-        current_cumulative_weight,
         current_tip,
     )
     .is_gt()
@@ -377,7 +370,6 @@ pub(super) fn ledger_header_state_at_height(
     }
 
     let mut cumulative_work = checkpoint.cumulative_work;
-    let mut cumulative_weight = checkpoint.cumulative_weight;
 
     let mut next_height = checkpoint.height.0.checked_add(1);
 
@@ -393,17 +385,16 @@ pub(super) fn ledger_header_state_at_height(
             .block(&height)
             .ok_or("canonical block is missing after checkpoint")?;
 
-        let block_work = bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
-            format!(
-                "invalid target bits {:08x} at height {}",
-                block.target_bits(),
-                height.0,
-            )
-        })?;
+        let block_work =
+            bellycoin::consensus::block_work(block.target_bits()).ok_or_else(|| {
+                format!(
+                    "invalid target bits {:08x} at height {}",
+                    block.target_bits(),
+                    height.0,
+                )
+            })?;
 
         cumulative_work = cumulative_work.saturating_add(block_work);
-
-        cumulative_weight = cumulative_weight.saturating_add(u64::from(block.block_weight()));
 
         next_height = value.checked_add(1);
     }
@@ -460,7 +451,6 @@ pub(super) fn ledger_header_state_at_height(
         height: target_height,
         header: target_block.header.clone(),
         cumulative_work,
-        cumulative_weight,
         difficulty_anchor,
         recent_headers,
     })

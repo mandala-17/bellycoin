@@ -120,8 +120,8 @@ impl LedgerState {
         &mut self,
         journal: SpendRollbackJournal,
     ) -> Result<(), StateError> {
-        self.coin.total_mined = self
-            .coin
+        self.bellycoin.total_mined = self
+            .bellycoin
             .total_mined
             .checked_sub(journal.mined)
             .ok_or(StateError::AmountOverflow)?;

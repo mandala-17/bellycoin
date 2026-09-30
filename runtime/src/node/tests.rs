@@ -422,7 +422,7 @@ fn append_synthetic_header_block(ledger: &mut Ledger, miner: Address) {
         .expect("synthetic chain has genesis")
         .target_bits();
 
-    let mut block = Block::from_protocol_transactions(
+    let block = Block::from_protocol_transactions(
         height,
         previous,
         target_bits,
@@ -432,20 +432,14 @@ fn append_synthetic_header_block(ledger: &mut Ledger, miner: Address) {
     )
     .expect("construct synthetic block");
 
-    // Make cumulative weight sensitive to skipped/double-counted blocks.
-    block.set_block_weight(
-        u32::try_from(height.0).expect("synthetic test height fits block weight"),
-    );
-
     ledger
         .chain
         .insert_block(block)
         .expect("append synthetic canonical block");
 }
 
-fn sequential_header_metrics(ledger: &Ledger, target_height: Height) -> (Work, u64) {
+fn sequential_header_metrics(ledger: &Ledger, target_height: Height) -> Work {
     let mut cumulative_work = Work::ZERO;
-    let mut cumulative_weight = 0_u64;
 
     for value in 1..=target_height.0 {
         let height = Height(value);
@@ -460,10 +454,9 @@ fn sequential_header_metrics(ledger: &Ledger, target_height: Height) -> (Work, u
 
         cumulative_work = cumulative_work.saturating_add(block_work);
 
-        cumulative_weight = cumulative_weight.saturating_add(u64::from(block.block_weight()));
     }
 
-    (cumulative_work, cumulative_weight)
+    cumulative_work
 }
 
 #[test]
@@ -476,7 +469,7 @@ fn checkpoint_state_matches_sequential_state_at_boundaries() {
         append_synthetic_header_block(&mut ledger, miner);
     }
 
-    let (checkpoints, total_work, total_weight) =
+    let (checkpoints, total_work) =
         build_header_state_checkpoints(&ledger).expect("build header checkpoints");
 
     assert_eq!(
@@ -487,11 +480,9 @@ fn checkpoint_state_matches_sequential_state_at_boundaries() {
         vec![0, 256, 512],
     );
 
-    let (expected_total_work, expected_total_weight) =
-        sequential_header_metrics(&ledger, Height(512));
+    let expected_total_work = sequential_header_metrics(&ledger, Height(512));
 
     assert_eq!(total_work, expected_total_work);
-    assert_eq!(total_weight, expected_total_weight);
 
     for value in [0_u64, 1, 255, 256, 257, 511, 512] {
         let height = Height(value);
@@ -499,16 +490,11 @@ fn checkpoint_state_matches_sequential_state_at_boundaries() {
         let state = ledger_header_state_at_height(&ledger, &checkpoints, height)
             .expect("checkpoint header state");
 
-        let (expected_work, expected_weight) = sequential_header_metrics(&ledger, height);
+        let expected_work = sequential_header_metrics(&ledger, height);
 
         assert_eq!(
             state.cumulative_work, expected_work,
             "cumulative work mismatch at height {value}",
-        );
-
-        assert_eq!(
-            state.cumulative_weight, expected_weight,
-            "cumulative weight mismatch at height {value}",
         );
 
         assert_eq!(state.height, height);
@@ -652,7 +638,6 @@ fn handshake_rejects_a_different_wire_version() {
         tip_height: Height(0),
         tip_hash: EXPECTED_GENESIS_HASH.0,
         cumulative_work: [0; 8],
-        cumulative_weight: 0,
     };
     assert!(
         validate_handshake(&handshake)
@@ -1444,7 +1429,6 @@ fn gossip_inventory_round_trips_and_rejects_excess_items_before_decode() {
         tip_height: Height(7),
         tip_hash: [3; 32],
         cumulative_work: Work::pow2(7).to_be_limbs(),
-        cumulative_weight: 123,
         hash: vec![[4; 32], [5; 32]],
     };
     let encoded = canonical_bytes(&inventory).unwrap();
@@ -1452,11 +1436,10 @@ fn gossip_inventory_round_trips_and_rejects_excess_items_before_decode() {
     assert_eq!(decoded.tip_height, inventory.tip_height);
     assert_eq!(decoded.tip_hash, inventory.tip_hash);
     assert_eq!(decoded.cumulative_work, inventory.cumulative_work);
-    assert_eq!(decoded.cumulative_weight, inventory.cumulative_weight);
     assert_eq!(decoded.hash, inventory.hash);
 
     let mut oversized = encoded;
-    oversized[112..116].copy_from_slice(&((MAX_GOSSIP_INVENTORY_ITEMS + 1) as u32).to_le_bytes());
+    oversized[104..108].copy_from_slice(&((MAX_GOSSIP_INVENTORY_ITEMS + 1) as u32).to_le_bytes());
     assert!(
         decode_gossip_inventory(&oversized)
             .unwrap_err()
@@ -1465,24 +1448,19 @@ fn gossip_inventory_round_trips_and_rejects_excess_items_before_decode() {
 }
 
 #[test]
-fn gossip_inventory_prefers_work_then_weight_then_smaller_tip_hash() {
-    let inventory = |work, weight, tip_hash| GossipInventory {
+fn gossip_inventory_prefers_work_then_smaller_tip_hash() {
+    let inventory = |work, tip_hash| GossipInventory {
         tip_height: Height(7),
         tip_hash,
         cumulative_work: Work::from_be_limbs(work).to_be_limbs(),
-        cumulative_weight: weight,
         hash: Vec::new(),
     };
-    let weaker = inventory([0, 0, 0, 0, 0, 0, 0, 7], 999, [1; 32]);
-    let stronger = inventory([0, 0, 0, 0, 0, 0, 0, 8], 1, [9; 32]);
+    let weaker = inventory([0, 0, 0, 0, 0, 0, 0, 7], [1; 32]);
+    let stronger = inventory([0, 0, 0, 0, 0, 0, 0, 8], [9; 32]);
     assert!(inventory_preferred(&stronger, &weaker));
 
-    let lighter = inventory([0, 0, 0, 0, 0, 0, 0, 8], 10, [1; 32]);
-    let heavier = inventory([0, 0, 0, 0, 0, 0, 0, 8], 11, [9; 32]);
-    assert!(inventory_preferred(&heavier, &lighter));
-
-    let larger_hash = inventory([0, 0, 0, 0, 0, 0, 0, 8], 11, [9; 32]);
-    let smaller_hash = inventory([0, 0, 0, 0, 0, 0, 0, 8], 11, [2; 32]);
+    let larger_hash = inventory([0, 0, 0, 0, 0, 0, 0, 8], [9; 32]);
+    let smaller_hash = inventory([0, 0, 0, 0, 0, 0, 0, 8], [2; 32]);
     assert!(inventory_preferred(&smaller_hash, &larger_hash));
 }
 

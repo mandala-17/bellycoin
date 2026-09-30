@@ -11,13 +11,13 @@ mod blockchain_errors {
     pub enum BlockError {
         MissingEmission,
         UnexpectedEmission,
-        BlockTooHeavy,
+        BlockTooLarge,
         InvalidTransaction,
         DuplicateTransaction,
         InvalidEmission,
         InvalidMerkleRoot,
         InvalidStateRoot,
-        InvalidBlockWeight,
+        InvalidBlockSize,
         Serialization(CodecError),
     }
 
@@ -26,7 +26,7 @@ mod blockchain_errors {
             match self {
                 Self::MissingEmission => f.write_str("non-genesis block must contain emission"),
                 Self::UnexpectedEmission => f.write_str("genesis block must not contain emission"),
-                Self::BlockTooHeavy => f.write_str("block serialized weight exceeds limit"),
+                Self::BlockTooLarge => f.write_str("block serialized size exceeds limit"),
                 Self::InvalidTransaction => f.write_str("block contains an invalid transaction"),
                 Self::DuplicateTransaction => f.write_str("block contains a duplicate transaction"),
                 Self::InvalidEmission => f.write_str("block emission is invalid"),
@@ -34,8 +34,8 @@ mod blockchain_errors {
                     f.write_str("block merkle root does not match transactions")
                 }
                 Self::InvalidStateRoot => f.write_str("block state root does not match ledger"),
-                Self::InvalidBlockWeight => {
-                    f.write_str("block header weight does not cover canonical block size")
+                Self::InvalidBlockSize => {
+                    f.write_str("block header size does not cover canonical block size")
                 }
                 Self::Serialization(error) => write!(f, "block encoding failed: {error}"),
             }

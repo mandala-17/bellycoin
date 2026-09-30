@@ -1,7 +1,7 @@
 use std::{collections::BTreeSet, fmt, str::FromStr};
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use crypto::{Address, Hash, Hash16, HashDomain, TransactionHash, domain16};
+use crypto::{Address, Hash, HashDomain, HashParseError, TransactionHash, domain};
 
 use crate::error::IntentError;
 
@@ -60,17 +60,17 @@ impl Pearl {
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, BorshSerialize, BorshDeserialize,
 )]
-pub struct UtxoId(Hash16);
+pub struct UtxoId([u8; 16]);
 
 impl UtxoId {
-    pub const SIZE: usize = crypto::HASH16_SIZE;
+    pub const SIZE: usize = 16;
 
     pub const fn from_bytes(bytes: [u8; Self::SIZE]) -> Self {
-        Self(Hash16::from_bytes(bytes))
+        Self(bytes)
     }
 
     pub const fn as_bytes(&self) -> &[u8; Self::SIZE] {
-        self.0.as_bytes()
+        &self.0
     }
 
     pub fn transaction(txid: TransactionHash, index: u32) -> Self {
@@ -86,21 +86,39 @@ impl UtxoId {
         bytes[0] = kind;
         bytes[1..33].copy_from_slice(origin);
         bytes[33..].copy_from_slice(&index.to_le_bytes());
-        Self(domain16(HashDomain::UtxoId, &bytes))
+        let digest = domain(HashDomain::UtxoId, &bytes);
+        let mut id = [0u8; Self::SIZE];
+        id.copy_from_slice(&digest.as_bytes()[..Self::SIZE]);
+        Self(id)
     }
 }
 
 impl fmt::Display for UtxoId {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(formatter)
+        for byte in self.0 {
+            write!(formatter, "{byte:02x}")?;
+        }
+        Ok(())
     }
 }
 
 impl FromStr for UtxoId {
-    type Err = crypto::HashParseError;
+    type Err = HashParseError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        value.parse::<Hash16>().map(Self)
+        if value.len() != Self::SIZE * 2 {
+            return Err(HashParseError);
+        }
+        let mut bytes = [0u8; Self::SIZE];
+        for (index, byte) in bytes.iter_mut().enumerate() {
+            let pair = value
+                .as_bytes()
+                .get(index * 2..index * 2 + 2)
+                .ok_or(HashParseError)?;
+            let pair = std::str::from_utf8(pair).map_err(|_| HashParseError)?;
+            *byte = u8::from_str_radix(pair, 16).map_err(|_| HashParseError)?;
+        }
+        Ok(Self(bytes))
     }
 }
 

@@ -37,7 +37,7 @@ Previous UTXO
 A UTXO is referenced using:
 
 ```rust
-pub struct UtxoId(Hash16);
+pub struct UtxoId([u8; 16]);
 ```
 
 The 16-byte ID is derived from the full transaction hash and output index, or
@@ -212,7 +212,7 @@ model.
 
 Difficulty is adjusted over time to keep block production near the target interval.
 
-Bellycoin intentionally keeps its Proof-of-Work design relatively simple rather than introducing additional block-weight-based difficulty mechanisms.
+Bellycoin intentionally keeps its Proof-of-Work design relatively simple rather than introducing block-size-based difficulty adjustments.
 
 ---
 

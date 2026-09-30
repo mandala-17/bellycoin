@@ -60,9 +60,8 @@ struct RegisteredNamesResponse {
 }
 
 #[derive(Deserialize)]
-struct NodeSupplyResponse {
+struct NodeStatusResponse {
     total_mined: u64,
-    supply: u64,
 }
 
 #[derive(Deserialize)]
