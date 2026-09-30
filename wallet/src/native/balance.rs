@@ -16,6 +16,8 @@ pub(super) fn print_balance(args: &[String]) -> Result<(), String> {
     println!("Reserved: {}", format_amount(balance.reserved));
     println!("UTXOs: {}", balance.utxo_count);
     println!("Total Mined: {}", format_amount(status.total_mined));
+    println!("Total Burned: {}", format_amount(status.total_burned));
+    println!("Total Supply: {}", format_amount(status.total_supply));
 
     Ok(())
 }

@@ -56,12 +56,16 @@ struct BalanceResponse {
 struct RegisteredNamesResponse {
     address: String,
     names: Vec<String>,
+    #[serde(default)]
+    expires_at_height: std::collections::BTreeMap<String, u64>,
     has_more: bool,
 }
 
 #[derive(Deserialize)]
 struct NodeStatusResponse {
     total_mined: u128,
+    total_burned: u128,
+    total_supply: u128,
 }
 
 #[derive(Deserialize)]
@@ -90,6 +94,8 @@ struct AddressActivity {
     activity_type: String,
     direction: String,
     amount: u128,
+    #[serde(default)]
+    name_burn: u128,
     #[serde(default)]
     message: Option<String>,
     size_bytes: Option<usize>,

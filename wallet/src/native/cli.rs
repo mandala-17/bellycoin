@@ -51,11 +51,14 @@ pub(super) fn interactive_menu() -> Result<(), String> {
             "9" => interactive_block_explorer()?,
             "10" => {
                 let name = prompt("Name")?;
+                let years = prompt_default("Years (525600 blocks each)", "1")?;
                 let path = prompt_default("Wallet file", DEFAULT_WALLET_PATH)?;
                 let rpc = prompt_default("RPC", DEFAULT_RPC_ADDR)?;
                 super::transaction::register_name(&[
                     "--name".into(),
                     name,
+                    "--years".into(),
+                    years,
                     "--wallet".into(),
                     path,
                     "--rpc".into(),
@@ -272,6 +275,7 @@ fn human_label(key: &str) -> String {
             "tx" => "TX".to_string(),
             "utxo" => "UTXO".to_string(),
             "BELLY" => "BELLY".to_string(),
+            "bountyhunter" => "BountyHunter".to_string(),
             other => {
                 let mut chars = other.chars();
                 match chars.next() {

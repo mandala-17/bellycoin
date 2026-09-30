@@ -31,7 +31,12 @@ pub(super) fn resolve_miner(ledger: &Ledger, value: &str) -> Result<Address, Str
     let public_key = ledger
         .state()
         .nakama
-        .resolve(&name)
+        .resolve(
+            &name,
+            ledger
+                .tip_height()
+                .map_or(0, |height| height.0.saturating_add(1)),
+        )
         .ok_or_else(|| format!("miner name `{value}` is not registered on this chain"))?;
     Ok(bellycoin::crypto::address_from_public_key(public_key))
 }

@@ -142,7 +142,7 @@ pub(super) fn validate_mempool(
             return Err("transaction cannot fit in a block".into());
         }
         let required_fee = minimum_relay_fee(encoded.len())?;
-        let paid_fee = transaction_miner_fee(transaction)?;
+        let paid_fee = transaction_bountyhunter_fee(transaction)?;
         if paid_fee < required_fee {
             return Err(format!(
                 "mempool transaction fee is too low: paid {paid_fee} pearl, required {required_fee} pearl for {} bytes",
@@ -167,21 +167,21 @@ pub(super) fn minimum_relay_fee(encoded_size: usize) -> Result<u128, String> {
 
 pub(super) fn meets_minimum_relay_fee(transaction: &Transaction, encoded_size: usize) -> bool {
     minimum_relay_fee(encoded_size)
-        .and_then(|required| transaction_miner_fee(transaction).map(|paid| paid >= required))
+        .and_then(|required| transaction_bountyhunter_fee(transaction).map(|paid| paid >= required))
         .unwrap_or(false)
 }
 
-pub(super) fn transaction_miner_fee(transaction: &Transaction) -> Result<u128, String> {
-    miner_fee_from_outputs(&transaction.intent.outputs)
+pub(super) fn transaction_bountyhunter_fee(transaction: &Transaction) -> Result<u128, String> {
+    bountyhunter_fee_from_outputs(&transaction.intent.outputs)
 }
 
-pub(super) fn miner_fee_from_outputs(outputs: &[Output]) -> Result<u128, String> {
+pub(super) fn bountyhunter_fee_from_outputs(outputs: &[Output]) -> Result<u128, String> {
     let mut fees = outputs
         .iter()
         .filter(|output| output.output == Nakama::BountyHunter);
     let fee = fees.next().map_or(0, |output| output.amount.as_pearl());
     if fees.next().is_some() {
-        return Err("transaction has multiple block-miner fee outputs".into());
+        return Err("transaction has multiple BountyHunter fee outputs".into());
     }
     Ok(fee)
 }

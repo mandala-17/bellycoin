@@ -2,7 +2,7 @@ use crypto::Address;
 
 use crate::{
     consensus::ValidatedTransaction,
-    ledger::nakama::nakama_name_burn,
+    ledger::nakama::nakama_registration_burn,
     ledger::{Bellycoin, LedgerState, SpendRollbackJournal, StateError, StateRollbackJournal},
     transaction::{SpendIntent, UtxoId},
 };
@@ -13,8 +13,15 @@ impl LedgerState {
     pub fn apply_validated_transaction(
         &mut self,
         transaction: &ValidatedTransaction,
-        block_miner: Address,
+        bounty_hunter: Address,
     ) -> Result<StateRollbackJournal, StateError> {
+        let burn = transaction
+            .registration
+            .as_ref()
+            .map(nakama_registration_burn)
+            .transpose()
+            .map_err(|_| StateError::InvalidTransaction)?
+            .unwrap_or_default();
         let registered_public_key = if let Some(key) = &transaction.revealed_key {
             self.nakama
                 .register_public_key(transaction.intent.sender, key.clone())
@@ -23,35 +30,35 @@ impl LedgerState {
         } else {
             None
         };
-        let registered_name = if let Some(registration) = &transaction.registration {
-            if let Err(error) = self
-                .nakama
-                .register(registration.clone(), transaction.chain)
-            {
-                if let Some(address) = registered_public_key {
-                    self.nakama.remove_public_key(address);
-                }
-                let _ = error;
-                return Err(StateError::InvalidTransaction);
-            }
-            Some(registration.name.clone())
-        } else {
-            None
-        };
+        let (registered_name, previous_name_record) =
+            if let Some(registration) = &transaction.registration {
+                let previous = match self.nakama.register(
+                    registration.clone(),
+                    transaction.chain,
+                    transaction.height,
+                ) {
+                    Ok(previous) => previous,
+                    Err(_) => {
+                        if let Some(address) = registered_public_key {
+                            self.nakama.remove_public_key(address);
+                        }
+                        return Err(StateError::InvalidTransaction);
+                    }
+                };
+                (Some(registration.name.clone()), previous)
+            } else {
+                (None, None)
+            };
         let spend = match self.apply_onchain_spend(
             &transaction.intent,
             transaction.txid,
-            block_miner,
-            transaction
-                .registration
-                .as_ref()
-                .map(|registration| nakama_name_burn(&registration.name))
-                .unwrap_or_default(),
+            bounty_hunter,
+            burn,
         ) {
             Ok(spend) => spend,
             Err(error) => {
                 if let Some(name) = &registered_name {
-                    self.nakama.remove(name);
+                    self.nakama.restore(name.clone(), previous_name_record);
                 }
                 if let Some(address) = registered_public_key {
                     self.nakama.remove_public_key(address);
@@ -62,6 +69,7 @@ impl LedgerState {
         Ok(StateRollbackJournal {
             spend: Some(spend),
             registered_name,
+            previous_name_record,
             registered_public_key,
         })
     }
@@ -70,7 +78,7 @@ impl LedgerState {
         &mut self,
         intent: &SpendIntent,
         txid: TransactionHash,
-        block_miner: Address,
+        bounty_hunter: Address,
         burn: crate::transaction::Pearl,
     ) -> Result<SpendRollbackJournal, StateError> {
         let mut journal = SpendRollbackJournal::default();
@@ -89,7 +97,7 @@ impl LedgerState {
 
                 let owner = match output.output {
                     Nakama::Address(address) => address,
-                    Nakama::BountyHunter => block_miner,
+                    Nakama::BountyHunter => bounty_hunter,
                 };
 
                 self.utxos.insert_pearl(
@@ -121,7 +129,7 @@ impl LedgerState {
         journal: StateRollbackJournal,
     ) -> Result<(), StateError> {
         if let Some(name) = journal.registered_name {
-            self.nakama.remove(&name);
+            self.nakama.restore(name, journal.previous_name_record);
         }
         if let Some(address) = journal.registered_public_key {
             self.nakama.remove_public_key(address);

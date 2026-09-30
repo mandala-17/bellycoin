@@ -80,10 +80,19 @@ pub(super) fn register_name(args: &[String]) -> Result<(), String> {
     let raw = option(args, "--name").ok_or("missing --name")?;
     let name = bellycoin::ledger::nakama::NakamaName::new(raw)
         .map_err(|error| format!("invalid name: {error:?}"))?;
+    let periods = option(args, "--years")
+        .unwrap_or("1")
+        .parse::<u16>()
+        .map_err(|_| "--years must be an integer from 1 to 100")?;
+    if !(1..=bellycoin::ledger::nakama::MAX_NAME_PERIODS).contains(&periods) {
+        return Err("--years must be an integer from 1 to 100".into());
+    }
     let wallet = load_wallet(option(args, "--wallet").unwrap_or(DEFAULT_WALLET_PATH))?;
     let rpc = option(args, "--rpc").unwrap_or(DEFAULT_RPC_ADDR);
-    let registration = wallet.0.sign_name_registration(name)?;
-    let burn = bellycoin::ledger::nakama::nakama_name_burn(&registration.name).as_pearl();
+    let registration = wallet.0.sign_name_registration(name, periods)?;
+    let burn = bellycoin::ledger::nakama::nakama_registration_burn(&registration)
+        .map_err(|error| format!("invalid name duration: {error:?}"))?
+        .as_pearl();
 
     let transaction = automatic_fee_transaction(|fee| {
         let required = burn
@@ -93,7 +102,7 @@ pub(super) fn register_name(args: &[String]) -> Result<(), String> {
         let (inputs, change) = select_nakama_inputs(rpc, &wallet, required)?;
         let mut outputs = vec![Output::new(wallet.address(), Pearl::from_pearl(change + 1))];
         if fee > 0 {
-            outputs.push(Output::block_miner(Pearl::from_pearl(fee)));
+            outputs.push(Output::bounty_hunter(Pearl::from_pearl(fee)));
         }
         let intent = SpendIntent {
             sender: wallet.address(),
@@ -156,7 +165,7 @@ pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
             let gross_change = explicit_change.map_or(0, Pearl::as_pearl);
             let change = gross_change
                 .checked_sub(fee)
-                .ok_or("explicit change is smaller than the miner fee")?;
+                .ok_or("explicit change is smaller than the BountyHunter fee")?;
             (
                 inputs.clone(),
                 change,
@@ -171,7 +180,7 @@ pub(super) fn sign_spend(args: &[String]) -> Result<(), String> {
         }
 
         if fee > 0 {
-            outputs.push(Output::block_miner(Pearl::from_pearl(fee)));
+            outputs.push(Output::bounty_hunter(Pearl::from_pearl(fee)));
         }
 
         let intent = SpendIntent {
@@ -238,7 +247,7 @@ pub(super) fn consolidate_coin_utxos(args: &[String]) -> Result<(), String> {
         )];
 
         if fee > 0 {
-            outputs.push(Output::block_miner(Pearl::from_pearl(fee)));
+            outputs.push(Output::bounty_hunter(Pearl::from_pearl(fee)));
         }
 
         let intent = SpendIntent {
@@ -303,7 +312,7 @@ pub(super) fn select_nakama_inputs(
 pub(super) fn reject_manual_fee(args: &[String]) -> Result<(), String> {
     if option(args, "--miner").is_some() {
         return Err(
-            "--miner is no longer supported; wallet fee is automatic at 10 pearl/byte".into(),
+            "--miner is no longer supported; BountyHunter fee is automatic at 10 pearl/byte".into(),
         );
     }
     Ok(())
@@ -326,7 +335,7 @@ pub(super) fn automatic_fee_transaction(
 
         let required_fee = size
             .checked_mul(AUTOMATIC_FEE_PEARL_PER_BYTE)
-            .ok_or("automatic miner fee overflow")?;
+            .ok_or("automatic BountyHunter fee overflow")?;
 
         if fee == required_fee {
             return Ok(transaction);

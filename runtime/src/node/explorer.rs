@@ -228,21 +228,21 @@ pub(super) fn address_transaction_activity(
     address: Address,
     block: &Block,
 ) -> Result<Option<serde_json::Value>, String> {
-    let miner = block.miner_address();
+    let bounty_hunter = block.miner_address();
     let sender = Some(transaction.intent.sender);
     let outputs = &transaction.intent.outputs;
-    let extra_sent = Pearl::ZERO;
+    let extra_sent = transaction_name_burn(transaction);
     let received = checked_output_sum(
         outputs
             .iter()
-            .filter(|output| output_recipient(output, miner) == Some(address))
+            .filter(|output| output_recipient(output, bounty_hunter) == Some(address))
             .map(|output| output.amount),
     )?;
     let (direction, amount) = if sender == Some(address) {
         let external = checked_output_sum(
             outputs
                 .iter()
-                .filter(|output| output_recipient(output, miner) != Some(address))
+                .filter(|output| output_recipient(output, bounty_hunter) != Some(address))
                 .map(|output| output.amount),
         )?
         .checked_add(extra_sent)
@@ -267,6 +267,7 @@ pub(super) fn address_transaction_activity(
         "type": transaction_kind(transaction),
         "direction": direction,
         "amount": amount.as_pearl(),
+        "name_burn": extra_sent.as_pearl(),
         "message": transaction.intent.message.as_deref(),
         "size_bytes": canonical_bytes(transaction).map_err(|error| error.to_string())?.len(),
     })))
@@ -314,29 +315,34 @@ pub(super) fn explorer_transaction_response(
     }))
 }
 
-pub(super) fn transaction_response(transaction: &Transaction, miner: Address) -> serde_json::Value {
-    spend_transaction_response(transaction, miner)
+pub(super) fn transaction_response(
+    transaction: &Transaction,
+    bounty_hunter: Address,
+) -> serde_json::Value {
+    spend_transaction_response(transaction, bounty_hunter)
 }
 
 pub(super) fn spend_transaction_response(
     transaction: &Transaction,
-    miner: Address,
+    bounty_hunter: Address,
 ) -> serde_json::Value {
     let intent = &transaction.intent;
     serde_json::json!({
-        "type": if transaction.registration.is_some() { "name_registration" } else { "coin" },
+        "type": transaction_kind(transaction),
         "registered_name": transaction.registration.as_ref().map(|registration| registration.name.as_str()),
+        "name_periods": transaction.registration.as_ref().map(|registration| registration.periods),
+        "name_burn": transaction_name_burn(transaction).as_pearl(),
         "message": intent.message.as_deref(),
         "signer": bellycoin::crypto::address_to_string(&intent.sender),
         "inputs": intent.inputs.iter().map(|input| input.utxo.to_string()).collect::<Vec<_>>(),
-        "outputs": public_outputs_response(&intent.outputs, miner, Some(intent.sender)),
-        "miner_fee": miner_fee_from_outputs(&intent.outputs).unwrap_or(0),
+        "outputs": public_outputs_response(&intent.outputs, bounty_hunter, Some(intent.sender)),
+        "bountyhunter_fee": bountyhunter_fee_from_outputs(&intent.outputs).unwrap_or(0),
     })
 }
 
 pub(super) fn public_outputs_response(
     outputs: &[Output],
-    miner: Address,
+    bounty_hunter: Address,
     sender: Option<Address>,
 ) -> Vec<serde_json::Value> {
     outputs
@@ -353,9 +359,9 @@ pub(super) fn public_outputs_response(
                     },
                 ),
                 Nakama::BountyHunter => (
-                    Some(bellycoin::crypto::address_to_string(&miner)),
-                    "miner",
-                    "miner_fee",
+                    Some(bellycoin::crypto::address_to_string(&bounty_hunter)),
+                    "bounty_hunter",
+                    "bountyhunter_fee",
                 ),
             };
             serde_json::json!({
@@ -369,10 +375,10 @@ pub(super) fn public_outputs_response(
         .collect()
 }
 
-pub(super) fn output_recipient(output: &Output, miner: Address) -> Option<Address> {
+pub(super) fn output_recipient(output: &Output, bounty_hunter: Address) -> Option<Address> {
     match output.output {
         Nakama::Address(address) => Some(address),
-        Nakama::BountyHunter => Some(miner),
+        Nakama::BountyHunter => Some(bounty_hunter),
     }
 }
 
@@ -388,8 +394,24 @@ pub(super) fn checked_output_sum(
         })
 }
 
-pub(super) fn transaction_kind(_transaction: &Transaction) -> &'static str {
-    "transfer"
+pub(super) fn transaction_kind(transaction: &Transaction) -> &'static str {
+    if transaction.registration.is_some() {
+        "name_registration"
+    } else {
+        "transfer"
+    }
+}
+
+pub(super) fn transaction_name_burn(transaction: &Transaction) -> Pearl {
+    transaction
+        .registration
+        .as_ref()
+        .map_or(Pearl::ZERO, |registration| {
+            Pearl::from_pearl(
+                bellycoin::ledger::nakama::nakama_name_burn(&registration.name).as_pearl()
+                    * u128::from(registration.periods),
+            )
+        })
 }
 
 pub(super) fn status_response(
@@ -400,6 +422,11 @@ pub(super) fn status_response(
     let tip_hash = ledger.tip_hash().ok_or("canonical genesis is missing")?;
     let next_difficulty =
         expected_next_difficulty(&ledger.chain).map_err(|error| error.to_string())?;
+    let bellycoin = &ledger.state().bellycoin;
+    let total_supply = bellycoin
+        .total_mined
+        .checked_sub(bellycoin.total_burned)
+        .ok_or("total burned exceeds total mined")?;
 
     Ok(serde_json::json!({
         "tip_height": tip_height.0,
@@ -407,7 +434,9 @@ pub(super) fn status_response(
         "tip_hash": hex::encode(tip_hash.0),
         "next_difficulty": next_difficulty,
         "cumulative_work": format_work(cumulative_work.to_be_limbs()),
-        "total_mined": ledger.state().bellycoin.total_mined.as_pearl(),
+        "total_mined": bellycoin.total_mined.as_pearl(),
+        "total_burned": bellycoin.total_burned.as_pearl(),
+        "total_supply": total_supply.as_pearl(),
     }))
 }
 
@@ -456,8 +485,8 @@ pub(super) fn block_response(_ledger: &Ledger, block: &Block) -> Result<serde_js
         "transactions": block.transaction_count(),
         "hash": hash,
         "transaction_details": transaction_details,
-        "miner": bellycoin::crypto::address_to_string(&block.miner_address()),
+        "bounty_hunter": bellycoin::crypto::address_to_string(&block.miner_address()),
         "subsidy": gross_subsidy.as_pearl(),
-        "miner_emission": gross_subsidy.as_pearl(),
+        "bounty_hunter_emission": gross_subsidy.as_pearl(),
     }))
 }

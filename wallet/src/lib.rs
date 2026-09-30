@@ -182,10 +182,15 @@ fn tagged_wallet_hash(tag: &[u8], bytes: &[u8]) -> Zeroizing<[u8; 32]> {
 }
 
 impl NakamaWallet {
-    pub fn sign_name_registration(&self, name: NakamaName) -> Result<RegisterNakama, String> {
+    pub fn sign_name_registration(
+        &self,
+        name: NakamaName,
+        periods: u16,
+    ) -> Result<RegisterNakama, String> {
         let chain = bellycoin::genesis::chain_context().map_err(|error| error.to_string())?;
         let mut registration = RegisterNakama {
             name,
+            periods,
             public_key: self.public_key.clone(),
             signature: bellycoin::crypto::NakamaSignature {
                 nakama: self.public_key.scheme(),

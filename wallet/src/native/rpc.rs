@@ -19,7 +19,17 @@ pub(super) fn fetch_registered_names(
 }
 
 pub(super) fn print_registered_names(response: &RegisteredNamesResponse) {
-    match response.names.as_slice() {
+    let names = response
+        .names
+        .iter()
+        .map(|name| {
+            response.expires_at_height.get(name).map_or_else(
+                || name.clone(),
+                |height| format!("{name} (expires at block {height})"),
+            )
+        })
+        .collect::<Vec<_>>();
+    match names.as_slice() {
         [] => println!("Name: (none)"),
         [name] if !response.has_more => println!("Name: {name}"),
         names => {

@@ -136,20 +136,46 @@ pub(super) fn handle_rpc_connection(database: &Path, stream: &mut TcpStream) -> 
         route if route.starts_with("/names/") => {
             let raw = route.trim_start_matches("/names/");
             let address = parse_address(raw)?;
-            let (names, has_more) = ledger.state().nakama.names_for_address(address, 100);
-            serde_json::json!({ "address": raw, "names": names, "has_more": has_more })
+            let height = ledger
+                .tip_height()
+                .map_or(0, |height| height.0.saturating_add(1));
+            let (names, has_more) = ledger
+                .state()
+                .nakama
+                .names_for_address(address, height, 100);
+            let expires_at_height = names
+                .iter()
+                .filter_map(|name| {
+                    ledger
+                        .state()
+                        .nakama
+                        .record(&bellycoin::ledger::nakama::NakamaName::new(*name).ok()?)
+                        .map(|record| ((*name).to_owned(), record.expires_at))
+                })
+                .collect::<std::collections::BTreeMap<_, _>>();
+            serde_json::json!({ "address": raw, "names": names, "expires_at_height": expires_at_height, "has_more": has_more })
         }
         route if route.starts_with("/name/") => {
             let raw = route.trim_start_matches("/name/");
             let name = bellycoin::ledger::nakama::NakamaName::new(raw)
                 .map_err(|error| format!("invalid name: {error:?}"))?;
+            let height = ledger
+                .tip_height()
+                .map_or(0, |height| height.0.saturating_add(1));
             let key = ledger
                 .state()
                 .nakama
-                .resolve(&name)
+                .resolve(&name, height)
                 .ok_or("name was not found")?;
+            let expires_at = ledger
+                .state()
+                .nakama
+                .record(&name)
+                .ok_or("name was not found")?
+                .expires_at;
             serde_json::json!({
                 "name": name.as_str(),
+                "expires_at_height": expires_at,
                 "address": bellycoin::crypto::address_to_string(&bellycoin::crypto::address_from_public_key(key)),
                 "public_key": hex::encode(&key.bytes),
                 "signature_scheme": key.scheme().as_str(),

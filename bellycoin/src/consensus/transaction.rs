@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, error::Error as StdError, fmt};
 use common::ChainContext;
 use crypto::{Address, PublicKey, TransactionHash};
 
-use crate::ledger::nakama::{NakamaError, RegisterNakama, nakama_name_burn};
+use crate::ledger::nakama::{NakamaError, RegisterNakama, nakama_registration_burn};
 use crate::transaction::{Input, IntentError, Output, Pearl, SpendIntent, Transaction, UtxoId};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -13,6 +13,7 @@ pub struct ValidatedTransaction {
     pub registration: Option<RegisterNakama>,
     pub chain: ChainContext,
     pub revealed_key: Option<PublicKey>,
+    pub height: u64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -30,6 +31,7 @@ pub trait TransactionStateView {
         &self,
         _registration: &RegisterNakama,
         _chain: ChainContext,
+        _height: u64,
     ) -> Result<(), NakamaError> {
         Err(NakamaError::InvalidSignature)
     }
@@ -38,7 +40,7 @@ pub trait TransactionStateView {
 pub fn validate_transaction(
     transaction: Transaction,
     chain: ChainContext,
-    _current_height: u64,
+    current_height: u64,
     state: &impl TransactionStateView,
 ) -> Result<ValidatedTransaction, TransactionConsensusError> {
     transaction
@@ -73,9 +75,10 @@ pub fn validate_transaction(
     let burn = transaction
         .registration
         .as_ref()
-        .map_or(Pearl::ZERO, |registration| {
-            nakama_name_burn(&registration.name)
-        });
+        .map(nakama_registration_burn)
+        .transpose()
+        .map_err(TransactionConsensusError::InvalidRegistration)?
+        .unwrap_or(Pearl::ZERO);
     validate_bellycoin_inputs(&intent.inputs, &intent.outputs, intent.sender, burn, state)?;
     if let Some(registration) = &transaction.registration {
         if &registration.public_key != public_key {
@@ -84,7 +87,7 @@ pub fn validate_transaction(
             ));
         }
         state
-            .validate_registration(registration, chain)
+            .validate_registration(registration, chain, current_height)
             .map_err(TransactionConsensusError::InvalidRegistration)?;
     }
 
@@ -99,6 +102,7 @@ pub fn validate_transaction(
         registration: transaction.registration,
         chain,
         revealed_key: key_to_register,
+        height: current_height,
     })
 }
 
@@ -221,7 +225,7 @@ mod tests {
         let inputs = [Input::new(outpoint)];
         let outputs = [
             Output::new(sender, Pearl::from_pearl(90)),
-            Output::block_miner(Pearl::from_pearl(10)),
+            Output::bounty_hunter(Pearl::from_pearl(10)),
         ];
         assert!(validate_bellycoin_inputs(&inputs, &outputs, sender, Pearl::ZERO, &state).is_ok());
 

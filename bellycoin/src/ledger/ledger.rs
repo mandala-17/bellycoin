@@ -100,6 +100,7 @@ impl Ledger {
             journals.push(StateRollbackJournal {
                 spend: Some(spend),
                 registered_name: None,
+                previous_name_record: None,
                 registered_public_key: None,
             });
         }
@@ -210,8 +211,10 @@ impl TransactionStateView for LedgerState {
         &self,
         registration: &crate::ledger::nakama::RegisterNakama,
         chain: ChainContext,
+        height: u64,
     ) -> Result<(), crate::ledger::nakama::NakamaError> {
-        self.nakama.validate_registration(registration, chain)
+        self.nakama
+            .validate_registration(registration, chain, height)
     }
 }
 

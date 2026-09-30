@@ -5,13 +5,13 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/status": { "get": { "summary": "Get node and chain status", "responses": { "200": { "description": "Node status" } } } },
+    "/status": { "get": { "summary": "Get node and chain status", "responses": { "200": { "description": "Node status with total_mined, total_burned, and total_supply in pearl" } } } },
     "/fee-policy": { "get": { "summary": "Get relay fee and block emission policy", "responses": { "200": { "description": "Fee policy" } } } },
     "/transaction": { "post": { "summary": "Submit a canonical Borsh transaction", "requestBody": { "required": true, "content": { "application/octet-stream": { "schema": { "type": "string", "contentEncoding": "binary" } } } }, "responses": { "200": { "description": "Accepted transaction ID" }, "400": { "description": "Invalid transaction" } } } },
     "/balance/{address}": { "get": { "summary": "Get Nakama balances", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "description": "Balance" } } } },
     "/nakama/{address}": { "get": { "summary": "Get Nakama UTXOs", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "description": "nakama state" } } } },
-    "/name/{name}": { "get": { "summary": "Resolve a Nakama name to its registered public key and address", "parameters": [{ "name": "name", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-z0-9-]{3,32}$" } }], "responses": { "200": { "description": "Registered name" }, "400": { "description": "Invalid or unknown name" } } } },
-    "/names/{address}": { "get": { "summary": "List registered names for an address", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "description": "Names, limited to 100 with a has_more flag" } } } },
+    "/name/{name}": { "get": { "summary": "Resolve an active Nakama name to its registered public key and address", "parameters": [{ "name": "name", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[a-z]{1,32}$" } }], "responses": { "200": { "description": "Active name, address, public key, and expires_at_height" }, "400": { "description": "Invalid, expired, or unknown name" } } } },
+    "/names/{address}": { "get": { "summary": "List active names for an address", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "description": "Active names and expires_at_height, limited to 100 with a has_more flag" } } } },
     "/public-key/{address}": { "get": { "summary": "Look up a registered public key by address", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "description": "Registration status and public key" } } } },
     "/blocks/latest": { "get": { "summary": "Get latest blocks", "responses": { "200": { "description": "Blocks" } } } },
     "/block/{height}": { "get": { "summary": "Get block by height", "parameters": [{ "name": "height", "in": "path", "required": true, "schema": { "type": "integer", "format": "uint64" } }], "responses": { "200": { "description": "Block" } } } },

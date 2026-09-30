@@ -8,10 +8,10 @@ pub enum Nakama {
 }
 
 impl Nakama {
-    pub const fn resolve(self, block_miner: Address) -> Address {
+    pub const fn resolve(self, bounty_hunter: Address) -> Address {
         match self {
             Self::Address(address) => address,
-            Self::BountyHunter => block_miner,
+            Self::BountyHunter => bounty_hunter,
         }
     }
 }

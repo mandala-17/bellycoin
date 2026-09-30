@@ -90,6 +90,9 @@ pub(super) fn print_history_page(mut history: AddressHistoryResponse) -> Option<
             println!("  Direction: {}", activity.direction);
             println!("  Type: {}", activity.activity_type);
             println!("  Amount: {}", format_amount(activity.amount));
+            if activity.name_burn > 0 {
+                println!("  Name Burn: {}", format_amount(activity.name_burn));
+            }
             if let Some(message) = activity.message.as_deref() {
                 println!("  Message: {message}");
             }

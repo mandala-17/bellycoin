@@ -87,7 +87,7 @@ fn asset_transaction_projection_exposes_asset_and_action() {
         asset_transaction_response(&transaction, Address::ZERO, Pearl::from_pearl(4_782));
     assert_eq!(response["asset"], asset);
     assert_eq!(response["asset_instruction"]["type"], "register");
-    assert_eq!(response["miner_fee"], 0);
+    assert_eq!(response["bountyhunter_fee"], 0);
     assert_eq!(
         response["asset_instruction"]["max_supply"],
         "100000000000000000000000"
@@ -95,12 +95,12 @@ fn asset_transaction_projection_exposes_asset_and_action() {
 }
 
 #[test]
-fn explorer_miner_fee_uses_block_miner_output() {
+fn explorer_bountyhunter_fee_uses_bounty_hunter_output() {
     let outputs = vec![CoinOutput {
         output: Recipient::BountyHunter,
         amount: Pearl::from_pearl(2_284),
     }];
-    assert_eq!(miner_fee_from_outputs(&outputs).unwrap(), 2_284);
+    assert_eq!(bountyhunter_fee_from_outputs(&outputs).unwrap(), 2_284);
 }
 
 #[test]

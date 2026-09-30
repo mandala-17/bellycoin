@@ -10,6 +10,7 @@ use crate::{
         POW_ARGON2_ITERATIONS, POW_ARGON2_LANES, POW_ARGON2_MEMORY_KIB, TARGET_BITS_START,
         TARGET_BLOCK_TIME_SECONDS,
     },
+    ledger::nakama::{MAX_NAME_PERIODS, NAME_GRACE_BLOCKS, NAME_PERIOD_BLOCKS},
     ledger::{Ledger, LedgerError},
 };
 use common::{ChainContext, Nonce};
@@ -37,7 +38,7 @@ pub const EXPECTED_GENESIS_HASH: BlockHash = BlockHash([
 
 /// Incremented whenever a consensus-critical field in [`ChainSpecIdentity`]
 /// changes.
-pub const CHAIN_SPEC_VERSION: u32 = 8;
+pub const CHAIN_SPEC_VERSION: u32 = 13;
 
 #[derive(BorshSerialize)]
 struct ChainSpecIdentity<'a> {
@@ -64,6 +65,11 @@ struct ChainSpecIdentity<'a> {
 
     // Monetary policy
     block_emission: u128,
+
+    // Nakama name leases
+    name_period_blocks: u64,
+    name_grace_blocks: u64,
+    max_name_periods: u16,
 
     // Block / address / hash
     max_block_size: u64,
@@ -102,6 +108,9 @@ pub fn chain_spec_hash() -> Result<Hash, GenesisError> {
 
         // Emission
         block_emission: BLOCK_EMISSION,
+        name_period_blocks: NAME_PERIOD_BLOCKS,
+        name_grace_blocks: NAME_GRACE_BLOCKS,
+        max_name_periods: MAX_NAME_PERIODS,
 
         max_block_size: MAX_BLOCK_SIZE as u64,
         address_size: ADDRESS_SIZE as u32,
@@ -110,7 +119,7 @@ pub fn chain_spec_hash() -> Result<Hash, GenesisError> {
 
         hash_size: HASH_SIZE as u32,
 
-        transaction_format: "direct-utxo-id16-registered-key-message-name-burn-v9",
+        transaction_format: "direct-utxo-id16-name-lease-periods-open-names-v14",
     };
 
     let bytes = crypto::canonical_bytes(&identity).map_err(GenesisError::Encoding)?;

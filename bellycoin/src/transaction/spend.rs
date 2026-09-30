@@ -136,7 +136,7 @@ impl Output {
         }
     }
 
-    pub const fn block_miner(amount: Pearl) -> Self {
+    pub const fn bounty_hunter(amount: Pearl) -> Self {
         Self {
             output: Nakama::BountyHunter,
             amount,

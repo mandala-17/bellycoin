@@ -1,6 +1,6 @@
 //! Canonical ledger state and rollback journal types.
 
-use super::nakama::{NakamaName, NakamaRegistryState};
+use super::nakama::{NakamaName, NakamaRecord, NakamaRegistryState};
 use super::utxo::{self, Bellycoin};
 
 use crate::transaction::{Pearl, UtxoId};
@@ -39,5 +39,6 @@ pub struct SpendRollbackJournal {
 pub struct StateRollbackJournal {
     pub spend: Option<SpendRollbackJournal>,
     pub registered_name: Option<NakamaName>,
+    pub previous_name_record: Option<NakamaRecord>,
     pub registered_public_key: Option<Address>,
 }
