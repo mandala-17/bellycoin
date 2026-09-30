@@ -9,9 +9,9 @@ use common::{ChainContext, Height};
 use crate::{
     blockchain::{Block, Chain, ChainError},
     consensus::{
-        ApplyBlockState, BellycoinInputState, ConsensusError, EmissionError,
-        TransactionConsensusError, TransactionStateView, ValidatedBlock, validate_emission,
-        validate_transaction,
+        ApplyBlockState, BellycoinInputState, ConsensusError, EMISSION_MATURITY_BLOCKS,
+        EmissionError, FINALITY_DEPTH_BLOCKS, TransactionConsensusError, TransactionStateView,
+        ValidatedBlock, validate_emission, validate_transaction,
     },
     ledger::{Bellycoin, LedgerState, SpendRollbackJournal, StateError, StateRollbackJournal},
 };
@@ -26,6 +26,7 @@ pub struct Ledger {
     journals: BTreeMap<Height, Vec<StateRollbackJournal>>,
 
     chain_context: Option<ChainContext>,
+    finalized_height: u64,
 }
 
 struct ExecutedBlock {
@@ -47,6 +48,10 @@ impl Ledger {
 
     pub fn tip_hash(&self) -> Option<BlockHash> {
         self.chain.tip_hash()
+    }
+
+    pub fn finalized_height(&self) -> Height {
+        Height(self.finalized_height)
     }
 
     pub fn state(&self) -> &LedgerState {
@@ -84,6 +89,10 @@ impl Ledger {
                 Bellycoin {
                     amount: emission.subsidy(),
                     owner: emission.recipient(),
+                    spendable_height: height
+                        .0
+                        .checked_add(EMISSION_MATURITY_BLOCKS)
+                        .ok_or(LedgerError::HeightOverflow)?,
                 },
             )?;
             state.bellycoin.total_mined = state
@@ -123,6 +132,9 @@ impl Ledger {
 
     pub fn rollback_tip(&mut self) -> Result<Block, LedgerError> {
         let height = self.chain.tip_height().ok_or(LedgerError::EmptyChain)?;
+        if height.0 <= self.finalized_height {
+            return Err(LedgerError::FinalizedBlock);
+        }
 
         let hash = self.chain.tip_hash().ok_or(LedgerError::EmptyChain)?;
 
@@ -172,6 +184,9 @@ impl Ledger {
         self.chain = staged_chain;
         self.chain_context = Some(executed.chain_context);
         self.journals.insert(height, executed.journals);
+        self.finalized_height = self
+            .finalized_height
+            .max(height.0.saturating_sub(FINALITY_DEPTH_BLOCKS));
         Ok(())
     }
 }
@@ -204,6 +219,7 @@ impl TransactionStateView for LedgerState {
         self.utxos.pearl(&id).map(|pearl| BellycoinInputState {
             amount: pearl.amount,
             owner: pearl.owner,
+            spendable_height: pearl.spendable_height,
         })
     }
 
@@ -265,6 +281,8 @@ pub enum LedgerError {
     InvalidStateRoot,
 
     InvalidBlockSize,
+    FinalizedBlock,
+    HeightOverflow,
 }
 
 impl fmt::Display for LedgerError {
@@ -301,6 +319,8 @@ impl fmt::Display for LedgerError {
             Self::InvalidBlockSize => {
                 formatter.write_str("block execution size does not match ledger")
             }
+            Self::FinalizedBlock => formatter.write_str("cannot roll back a finalized block"),
+            Self::HeightOverflow => formatter.write_str("emission maturity height overflow"),
         }
     }
 }
@@ -374,6 +394,20 @@ mod p3e_block_atomicity_tests {
         assert_eq!(outputs.len(), 1);
         assert_eq!(outputs[0].1.amount, subsidy);
         assert_eq!(outputs[0].1.owner, miner);
+        assert_eq!(outputs[0].1.spendable_height, 1 + EMISSION_MATURITY_BLOCKS);
+    }
+
+    #[test]
+    fn finalized_boundary_cannot_be_rolled_back() {
+        let mut ledger = genesis::genesis_ledger().expect("genesis ledger");
+        let miner = crypto::Address([0x32; crypto::ADDRESS_SIZE]);
+        commit_empty_block(&mut ledger, miner);
+        ledger.finalized_height = 1;
+        assert!(matches!(
+            ledger.rollback_tip(),
+            Err(LedgerError::FinalizedBlock)
+        ));
+        assert_eq!(ledger.tip_height(), Some(Height(1)));
     }
 
     fn ledger_bytes(ledger: &Ledger) -> Vec<u8> {

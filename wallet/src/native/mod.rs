@@ -49,6 +49,7 @@ struct NakamaResponse {
 struct BalanceResponse {
     total: u128,
     reserved: u128,
+    immature: u128,
     utxo_count: usize,
 }
 
@@ -73,6 +74,7 @@ struct NakamaUtxo {
     id: String,
     amount: u128,
     reserved: bool,
+    spendable_height: u64,
 }
 
 #[derive(Deserialize)]

@@ -54,6 +54,7 @@ impl LedgerState {
             transaction.txid,
             bounty_hunter,
             burn,
+            transaction.height,
         ) {
             Ok(spend) => spend,
             Err(error) => {
@@ -80,6 +81,7 @@ impl LedgerState {
         txid: TransactionHash,
         bounty_hunter: Address,
         burn: crate::transaction::Pearl,
+        height: u64,
     ) -> Result<SpendRollbackJournal, StateError> {
         let mut journal = SpendRollbackJournal::default();
 
@@ -105,6 +107,7 @@ impl LedgerState {
                     Bellycoin {
                         amount: output.amount,
                         owner,
+                        spendable_height: height,
                     },
                 )?;
 

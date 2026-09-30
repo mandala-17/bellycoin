@@ -221,10 +221,14 @@ Bellycoin intentionally keeps its Proof-of-Work design relatively simple rather 
 Bellycoin uses a fixed block subsidy:
 
 ```text
-1,000 BELLY per block
+100 BELLY per block
 ```
 
 The current design does not use Bitcoin-style halvings.
+
+New block emissions mature after 10,080 blocks (about seven days at the 60-second target). An emission created in block H can first be spent in block H + 10,080. Ordinary transaction outputs remain spendable immediately.
+
+Blocks become final after 10,080 confirmations. The node keeps a permanent finalized height and rejects any rollback or peer branch that would replace a block at or below that height. Chain selection among eligible branches still uses cumulative work.
 
 This means miners continue receiving the protocol-defined block subsidy as the chain grows.
 

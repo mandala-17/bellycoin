@@ -6,9 +6,9 @@ use crate::{
     blockchain::{Block, GENESIS_TARGET_BITS, MAX_BLOCK_SIZE},
     consensus::{
         BLOCK_EMISSION, DIFFICULTY_ADJUSTMENT_WINDOW, DIFFICULTY_ALGORITHM,
-        DIFFICULTY_TARGET_TIMESPAN_SECONDS, DIFFICULTY_TIMESPAN_CLAMP_FACTOR, POW_ALGORITHM,
-        POW_ARGON2_ITERATIONS, POW_ARGON2_LANES, POW_ARGON2_MEMORY_KIB, TARGET_BITS_START,
-        TARGET_BLOCK_TIME_SECONDS,
+        DIFFICULTY_TARGET_TIMESPAN_SECONDS, DIFFICULTY_TIMESPAN_CLAMP_FACTOR,
+        EMISSION_MATURITY_BLOCKS, FINALITY_DEPTH_BLOCKS, POW_ALGORITHM, POW_ARGON2_ITERATIONS,
+        POW_ARGON2_LANES, POW_ARGON2_MEMORY_KIB, TARGET_BITS_START, TARGET_BLOCK_TIME_SECONDS,
     },
     ledger::nakama::{MAX_NAME_PERIODS, NAME_GRACE_BLOCKS, NAME_PERIOD_BLOCKS},
     ledger::{Ledger, LedgerError},
@@ -38,7 +38,7 @@ pub const EXPECTED_GENESIS_HASH: BlockHash = BlockHash([
 
 /// Incremented whenever a consensus-critical field in [`ChainSpecIdentity`]
 /// changes.
-pub const CHAIN_SPEC_VERSION: u32 = 13;
+pub const CHAIN_SPEC_VERSION: u32 = 14;
 
 #[derive(BorshSerialize)]
 struct ChainSpecIdentity<'a> {
@@ -65,6 +65,8 @@ struct ChainSpecIdentity<'a> {
 
     // Monetary policy
     block_emission: u128,
+    emission_maturity_blocks: u64,
+    finality_depth_blocks: u64,
 
     // Nakama name leases
     name_period_blocks: u64,
@@ -108,6 +110,8 @@ pub fn chain_spec_hash() -> Result<Hash, GenesisError> {
 
         // Emission
         block_emission: BLOCK_EMISSION,
+        emission_maturity_blocks: EMISSION_MATURITY_BLOCKS,
+        finality_depth_blocks: FINALITY_DEPTH_BLOCKS,
         name_period_blocks: NAME_PERIOD_BLOCKS,
         name_grace_blocks: NAME_GRACE_BLOCKS,
         max_name_periods: MAX_NAME_PERIODS,

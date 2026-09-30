@@ -273,7 +273,7 @@ fn nakama_input_candidates(rpc: &str, wallet: &LoadedWallet) -> Result<Vec<Nakam
     let mut candidates = response
         .utxos
         .into_iter()
-        .filter(|utxo| !utxo.reserved)
+        .filter(|utxo| !utxo.reserved && response.next_height >= utxo.spendable_height)
         .collect::<Vec<_>>();
     candidates.sort_by(|left, right| {
         right

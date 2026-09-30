@@ -9,6 +9,7 @@ use crate::transaction::{Pearl, UtxoId};
 pub struct Bellycoin {
     pub amount: Pearl,
     pub owner: Address,
+    pub spendable_height: u64,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
@@ -77,6 +78,7 @@ mod tests {
         let coin = Bellycoin {
             amount: Pearl::ONE,
             owner: Address::ZERO,
+            spendable_height: 0,
         };
         let mut set = UtxoSet::default();
         assert_eq!(set.insert_pearl(id, coin), Ok(()));

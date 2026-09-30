@@ -47,6 +47,10 @@ pub(super) fn synchronize_headers(
                         .find_map(|(hash, height)| (*hash == ancestor).then_some(*height))
                         .ok_or("common ancestor is not in the local locator")?;
 
+                    if height < ledger.finalized_height() {
+                        return Err("peer branch forks below finalized height".into());
+                    }
+
                     ledger_header_state_at_height(&ledger, header_checkpoints.as_slice(), height)?
                 }
             };
@@ -101,6 +105,10 @@ pub(super) fn synchronize_headers(
                     .iter()
                     .find_map(|(hash, height)| (*hash == ancestor).then_some(*height))
                     .ok_or("peer response ancestor is not in the local locator")?;
+
+                if height < ledger.finalized_height() {
+                    return Err("peer branch forks below finalized height".into());
+                }
 
                 ledger_header_state_at_height(&ledger, header_checkpoints.as_slice(), height)?
             }
@@ -207,6 +215,9 @@ pub(super) fn synchronize_blocks(
     let (cached_ledger, _header_checkpoints, current_cumulative_work) =
         load_or_initialize_header_snapshot(database)?;
     let mut staged = cached_ledger.as_ref().clone();
+    if sync.ancestor_height < staged.finalized_height() {
+        return Err("peer branch forks below finalized height".into());
+    }
     let old_tip = staged.tip_hash();
     let new_tip = blocks
         .last()

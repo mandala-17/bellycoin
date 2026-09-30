@@ -461,6 +461,7 @@ mod tests {
                 Bellycoin {
                     amount: funded_amount,
                     owner: sender,
+                    spendable_height: 0,
                 },
             )
             .unwrap();
@@ -473,6 +474,7 @@ mod tests {
                         .checked_add(Pearl::ONE)
                         .unwrap(),
                     owner: sender,
+                    spendable_height: 0,
                 },
             )
             .unwrap();
@@ -591,6 +593,7 @@ mod tests {
                 Bellycoin {
                     amount: Pearl::ONE,
                     owner: sender,
+                    spendable_height: 0,
                 },
             )
             .unwrap();

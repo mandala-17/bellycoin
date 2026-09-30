@@ -53,6 +53,8 @@ pub(super) fn nakama_response(
                 "id": id.to_string(),
                 "amount": coin.amount.as_pearl(),
                 "reserved": is_reserved,
+                "spendable_height": coin.spendable_height,
+                "immature": next_height < coin.spendable_height,
             })
         })
         .collect::<Vec<_>>();
@@ -64,7 +66,14 @@ pub(super) fn nakama_response(
         .map(|(id, _)| id.to_string());
     let utxo_snapshot_entries = nakama_utxos
         .iter()
-        .map(|(id, coin)| (*id, coin.amount, reserved.contains(id)))
+        .map(|(id, coin)| {
+            (
+                *id,
+                coin.amount,
+                coin.spendable_height,
+                reserved.contains(id),
+            )
+        })
         .collect::<Vec<_>>();
     let utxo_snapshot_bytes = bellycoin::crypto::canonical_bytes(&(address, utxo_snapshot_entries))
         .map_err(|error| format!("encode nakama UTXO snapshot: {error}"))?;
@@ -92,6 +101,10 @@ pub(super) fn balance_response(
     let reserved_ids = reserved_bellycoin_inputs(mempool);
     let mut total = Pearl::from_pearl(0);
     let mut reserved = Pearl::from_pearl(0);
+    let mut immature = Pearl::ZERO;
+    let next_height = ledger
+        .tip_height()
+        .map_or(0, |height| height.0.saturating_add(1));
     let mut utxo_count = 0_usize;
     for utxo in ledger
         .state()
@@ -102,7 +115,11 @@ pub(super) fn balance_response(
         total = total
             .checked_add(utxo.1.amount)
             .ok_or("nakama balance overflow")?;
-        if reserved_ids.contains(&utxo.0) {
+        if next_height < utxo.1.spendable_height {
+            immature = immature
+                .checked_add(utxo.1.amount)
+                .ok_or("immature nakama balance overflow")?;
+        } else if reserved_ids.contains(&utxo.0) {
             reserved = reserved
                 .checked_add(utxo.1.amount)
                 .ok_or("reserved nakama balance overflow")?;
@@ -113,6 +130,7 @@ pub(super) fn balance_response(
     }
     let available = total
         .checked_sub(reserved)
+        .and_then(|balance| balance.checked_sub(immature))
         .ok_or("reserved nakama balance exceeds total")?;
     Ok(serde_json::json!({
         "address": bellycoin::crypto::address_to_string(&address),
@@ -120,6 +138,7 @@ pub(super) fn balance_response(
         "total": total.as_pearl(),
         "available": available.as_pearl(),
         "reserved": reserved.as_pearl(),
+        "immature": immature.as_pearl(),
         "utxo_count": utxo_count,
     }))
 }
@@ -136,6 +155,10 @@ pub(super) fn explorer_address_response(
     let reserved_ids = reserved_bellycoin_inputs(mempool);
     let mut total = Pearl::from_pearl(0);
     let mut reserved = Pearl::from_pearl(0);
+    let mut immature = Pearl::ZERO;
+    let next_height = ledger
+        .tip_height()
+        .map_or(0, |height| height.0.saturating_add(1));
     for utxo in ledger
         .state()
         .utxos
@@ -145,7 +168,11 @@ pub(super) fn explorer_address_response(
         total = total
             .checked_add(utxo.1.amount)
             .ok_or("explorer balance overflow")?;
-        if reserved_ids.contains(&utxo.0) {
+        if next_height < utxo.1.spendable_height {
+            immature = immature
+                .checked_add(utxo.1.amount)
+                .ok_or("explorer immature balance overflow")?;
+        } else if reserved_ids.contains(&utxo.0) {
             reserved = reserved
                 .checked_add(utxo.1.amount)
                 .ok_or("explorer reserved balance overflow")?;
@@ -215,6 +242,7 @@ pub(super) fn explorer_address_response(
         "balance": {
             "total": total.as_pearl(),
             "reserved": reserved.as_pearl(),
+            "immature": immature.as_pearl(),
         },
         "activity_count": activities.len(),
         "emission_count": emission_count,
@@ -431,6 +459,7 @@ pub(super) fn status_response(
     Ok(serde_json::json!({
         "tip_height": tip_height.0,
         "next_height": tip_height.0.saturating_add(1),
+        "finalized_height": ledger.finalized_height().0,
         "tip_hash": hex::encode(tip_hash.0),
         "next_difficulty": next_difficulty,
         "cumulative_work": format_work(cumulative_work.to_be_limbs()),

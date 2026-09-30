@@ -15,7 +15,16 @@ pub(super) fn print_utxo_tracker(args: &[String]) -> Result<(), String> {
     let mut utxos = nakama.utxos.iter().collect::<Vec<_>>();
     utxos.sort_by(|left, right| left.id.cmp(&right.id));
     for utxo in utxos {
-        println!("- utxo: {}  {}", utxo.id, format_amount(utxo.amount),);
+        if nakama.next_height < utxo.spendable_height {
+            println!(
+                "- utxo: {}  {}  immature until block {}",
+                utxo.id,
+                format_amount(utxo.amount),
+                utxo.spendable_height
+            );
+        } else {
+            println!("- utxo: {}  {}", utxo.id, format_amount(utxo.amount));
+        }
     }
     Ok(())
 }

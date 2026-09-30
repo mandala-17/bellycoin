@@ -6,6 +6,8 @@ use common::Height;
 use crypto::{Address, Hash, HashDomain, canonical_bytes, domain};
 
 pub const TARGET_BLOCK_TIME_SECONDS: u64 = 60;
+pub const EMISSION_MATURITY_BLOCKS: u64 = 10_080;
+pub const FINALITY_DEPTH_BLOCKS: u64 = 10_080;
 pub const DIFFICULTY_ADJUSTMENT_WINDOW: u64 = 2_500;
 pub const DIFFICULTY_TARGET_TIMESPAN_SECONDS: u64 =
     TARGET_BLOCK_TIME_SECONDS * DIFFICULTY_ADJUSTMENT_WINDOW;
@@ -82,7 +84,7 @@ pub fn expected_difficulty_for_height<E>(
     ))
 }
 
-pub const BLOCK_EMISSION: u128 = 100_000_000_000;
+pub const BLOCK_EMISSION: u128 = 10_000_000_000;
 
 pub fn expected_emission_for_height(_height: Height) -> Pearl {
     Pearl::from_pearl(BLOCK_EMISSION)

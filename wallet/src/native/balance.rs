@@ -12,8 +12,14 @@ pub(super) fn print_balance(args: &[String]) -> Result<(), String> {
 
     println!("Address: {address}");
     rpc::print_registered_names(&names);
-    println!("Available: {}", format_amount(balance.total));
+    let available = balance
+        .total
+        .checked_sub(balance.reserved)
+        .and_then(|amount| amount.checked_sub(balance.immature))
+        .ok_or("locked balance exceeds total")?;
+    println!("Available: {}", format_amount(available));
     println!("Reserved: {}", format_amount(balance.reserved));
+    println!("Immature: {}", format_amount(balance.immature));
     println!("UTXOs: {}", balance.utxo_count);
     println!("Total Mined: {}", format_amount(status.total_mined));
     println!("Total Burned: {}", format_amount(status.total_burned));

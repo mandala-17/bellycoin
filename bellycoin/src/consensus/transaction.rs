@@ -20,6 +20,7 @@ pub struct ValidatedTransaction {
 pub struct BellycoinInputState {
     pub amount: Pearl,
     pub owner: Address,
+    pub spendable_height: u64,
 }
 
 pub trait TransactionStateView {
@@ -79,7 +80,14 @@ pub fn validate_transaction(
         .transpose()
         .map_err(TransactionConsensusError::InvalidRegistration)?
         .unwrap_or(Pearl::ZERO);
-    validate_bellycoin_inputs(&intent.inputs, &intent.outputs, intent.sender, burn, state)?;
+    validate_bellycoin_inputs(
+        &intent.inputs,
+        &intent.outputs,
+        intent.sender,
+        burn,
+        current_height,
+        state,
+    )?;
     if let Some(registration) = &transaction.registration {
         if &registration.public_key != public_key {
             return Err(TransactionConsensusError::InvalidRegistration(
@@ -111,6 +119,7 @@ fn validate_bellycoin_inputs(
     outputs: &[Output],
     sender: Address,
     burn: Pearl,
+    current_height: u64,
     state: &impl TransactionStateView,
 ) -> Result<(), TransactionConsensusError> {
     let mut unique = BTreeSet::new();
@@ -127,6 +136,9 @@ fn validate_bellycoin_inputs(
             .ok_or(TransactionConsensusError::UtxoNotFound)?;
         if previous.owner != sender {
             return Err(TransactionConsensusError::RecipientMismatch);
+        }
+        if current_height < previous.spendable_height {
+            return Err(TransactionConsensusError::ImmatureEmission);
         }
         input_total = input_total
             .checked_add(previous.amount)
@@ -153,6 +165,7 @@ pub enum TransactionConsensusError {
     InvalidAuthorization,
     UnknownPublicKey,
     UtxoNotFound,
+    ImmatureEmission,
     RecipientMismatch,
     PearlOverflow,
     ValueMismatch,
@@ -170,6 +183,7 @@ impl fmt::Display for TransactionConsensusError {
             Self::UnknownPublicKey => formatter
                 .write_str("sender public key is not registered; reveal it in this transaction"),
             Self::UtxoNotFound => formatter.write_str("transaction input UTXO was not found"),
+            Self::ImmatureEmission => formatter.write_str("emission UTXO has not matured"),
             Self::RecipientMismatch => {
                 formatter.write_str("transaction input is not committed to this signer")
             }
@@ -202,6 +216,7 @@ mod tests {
         outpoint: UtxoId,
         amount: Pearl,
         owner: Address,
+        spendable_height: u64,
     }
 
     impl TransactionStateView for OneInput {
@@ -209,6 +224,7 @@ mod tests {
             (id == self.outpoint).then_some(BellycoinInputState {
                 amount: self.amount,
                 owner: self.owner,
+                spendable_height: self.spendable_height,
             })
         }
     }
@@ -221,23 +237,48 @@ mod tests {
             outpoint,
             amount: Pearl::from_pearl(100),
             owner: sender,
+            spendable_height: 0,
         };
         let inputs = [Input::new(outpoint)];
         let outputs = [
             Output::new(sender, Pearl::from_pearl(90)),
             Output::bounty_hunter(Pearl::from_pearl(10)),
         ];
-        assert!(validate_bellycoin_inputs(&inputs, &outputs, sender, Pearl::ZERO, &state).is_ok());
+        assert!(
+            validate_bellycoin_inputs(&inputs, &outputs, sender, Pearl::ZERO, 1, &state).is_ok()
+        );
 
         let underfunded = [Output::new(sender, Pearl::from_pearl(99))];
         assert!(matches!(
-            validate_bellycoin_inputs(&inputs, &underfunded, sender, Pearl::ZERO, &state),
+            validate_bellycoin_inputs(&inputs, &underfunded, sender, Pearl::ZERO, 1, &state),
             Err(TransactionConsensusError::ValueMismatch)
         ));
         let overfunded = [Output::new(sender, Pearl::from_pearl(101))];
         assert!(matches!(
-            validate_bellycoin_inputs(&inputs, &overfunded, sender, Pearl::ZERO, &state),
+            validate_bellycoin_inputs(&inputs, &overfunded, sender, Pearl::ZERO, 1, &state),
             Err(TransactionConsensusError::ValueMismatch)
         ));
+    }
+
+    #[test]
+    fn emission_spend_is_allowed_at_maturity_height() {
+        let sender = Address([7; crypto::ADDRESS_SIZE]);
+        let outpoint = UtxoId::transaction(TransactionHash([9; crypto::HASH_SIZE]), 0);
+        let state = OneInput {
+            outpoint,
+            amount: Pearl::ONE,
+            owner: sender,
+            spendable_height: 10_081,
+        };
+        let inputs = [Input::new(outpoint)];
+        let outputs = [Output::new(sender, Pearl::ONE)];
+        assert!(matches!(
+            validate_bellycoin_inputs(&inputs, &outputs, sender, Pearl::ZERO, 10_080, &state),
+            Err(TransactionConsensusError::ImmatureEmission)
+        ));
+        assert!(
+            validate_bellycoin_inputs(&inputs, &outputs, sender, Pearl::ZERO, 10_081, &state)
+                .is_ok()
+        );
     }
 }
