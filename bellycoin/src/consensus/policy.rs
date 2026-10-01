@@ -6,7 +6,7 @@ use common::Height;
 use crypto::{Address, Hash, HashDomain, canonical_bytes, domain};
 
 pub const TARGET_BLOCK_TIME_SECONDS: u64 = 60;
-pub const EMISSION_MATURITY_BLOCKS: u64 = 10_080;
+pub const EMISSION_MATURITY_BLOCKS: u64 = 480;
 pub const FINALITY_DEPTH_BLOCKS: u64 = 10_080;
 pub const DIFFICULTY_ADJUSTMENT_WINDOW: u64 = 2_500;
 pub const DIFFICULTY_TARGET_TIMESPAN_SECONDS: u64 =
